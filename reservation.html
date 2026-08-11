@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 온라인 예약 신청">
   <title>호실 예약 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260811-graduate-date-range">
+  <link rel="stylesheet" href="./styles/style.css?v=20260811-graduate-room-selection">
 </head>
 <body>
   <header class="app-header">
@@ -91,6 +91,25 @@
               </span>
             </label>
 
+            <fieldset class="field field-full room-fieldset">
+              <legend>사용할 호실</legend>
+              <p class="field-help">예약할 호실을 클릭해 주세요.</p>
+              <div
+                id="room-picker"
+                class="room-picker"
+                role="radiogroup"
+                aria-label="사용할 호실 선택"
+              >
+                <button type="button" data-room-number="705" role="radio">705호</button>
+                <button type="button" data-room-number="706" role="radio">706호</button>
+                <button type="button" data-room-number="707" role="radio">707호</button>
+                <button type="button" data-room-number="708" role="radio">708호</button>
+                <button type="button" data-room-number="709" role="radio">709호</button>
+                <button type="button" data-room-number="710" role="radio">710호</button>
+              </div>
+              <input id="room-number" type="hidden" value="">
+            </fieldset>
+
             <label class="field">
               사용할 장비
               <input id="equipment" placeholder="인두기, 컴퓨터, 없음 등" aria-required="true">
@@ -146,7 +165,7 @@
               <input id="reservation-start-date" type="hidden" value="">
               <input id="reservation-end-date" type="hidden" value="">
               <span class="field-help">
-                시작일과 종료일을 차례로 선택해 주세요. 하루만 예약하려면 같은 날짜를 한 번 더 누르세요. 주말·예약된 날짜는 선택할 수 없으며 최대 연속 평일 5일까지 가능합니다.
+                호실을 먼저 선택하고 시작일과 종료일을 차례로 선택해 주세요. 하루만 예약하려면 같은 날짜를 한 번 더 누르세요. 주말·해당 호실이 예약된 날짜는 선택할 수 없으며 최대 연속 평일 5일까지 가능합니다.
               </span>
               <div class="final-time-summary" aria-live="polite">
                 <span>최종 선택 날짜</span>
@@ -175,7 +194,7 @@
               </div>
 
               <ul class="reservation-rules-list">
-                <li>예약은 선택한 평일 기간 동안 이용할 수 있습니다.</li>
+                <li>예약은 선택한 호실과 평일 기간 동안 이용할 수 있습니다.</li>
                 <li>예약은 내일부터 14일 이내만 가능하며, 주말·예약 불가일을 포함하지 않는 연속 평일 최대 5일까지 선택할 수 있습니다.</li>
                 <li>예약자는 이용 전 안전교육 수료증을 제출하고, 이용 후에는 이용확인서를 제출해 주세요.</li>
                 <li>사용한 장비의 전원을 종료하고 주변을 정리한 후 퇴실해 주세요.</li>
@@ -195,6 +214,6 @@
     </div>
   </main>
 
-  <script type="module" src="./scripts/reservation.js?v=20260811-graduate-date-range"></script>
+  <script type="module" src="./scripts/reservation.js?v=20260811-graduate-room-selection"></script>
 </body>
 </html>

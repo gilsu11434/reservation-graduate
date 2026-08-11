@@ -16,6 +16,8 @@ const studentIdInput = document.getElementById("student-id");
 const graduationProfessorInput = document.getElementById(
   "graduation-professor"
 );
+const roomNumberInput = document.getElementById("room-number");
+const roomButtons = document.querySelectorAll("[data-room-number]");
 const equipmentInput = document.getElementById("equipment");
 const purposeInput = document.getElementById("purpose");
 const rulesAgreedInput = document.getElementById("rules-agreed");
@@ -51,6 +53,8 @@ let calendarMaximumDate = null;
 let calendarViewDate = null;
 let selectedStartDate = "";
 let selectedEndDate = "";
+let selectedRoomNumber = "";
+let bookedSlotsRequestId = 0;
 let professorNameComposing = false;
 let activeReservationErrorInput = null;
 
@@ -85,6 +89,14 @@ graduationProfessorInput.addEventListener("blur", () => {
 
 reservationForm.addEventListener("input", clearEditedFieldError);
 reservationForm.addEventListener("change", clearEditedFieldError);
+
+roomButtons.forEach((button) => {
+  button.setAttribute("aria-checked", "false");
+
+  button.addEventListener("click", () => {
+    void selectRoomNumber(button.dataset.roomNumber);
+  });
+});
 
 calendarToggle.addEventListener("click", () => {
   const opening = calendarPopover.hidden;
@@ -127,6 +139,52 @@ function clearEditedFieldError(event) {
     reservationMessage.textContent = "";
     reservationMessage.classList.remove("error");
   }
+}
+
+function syncRoomSelection() {
+  roomNumberInput.value = selectedRoomNumber;
+
+  roomButtons.forEach((button) => {
+    const selected = button.dataset.roomNumber === selectedRoomNumber;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-checked", String(selected));
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
+function resetRoomSelection() {
+  selectedRoomNumber = "";
+  bookedSlots = [];
+  bookedSlotsLoaded = false;
+  bookedSlotsLoadFailed = false;
+  bookedSlotsRequestId += 1;
+  syncRoomSelection();
+  resetDateRangeSelection();
+  renderReservationCalendar();
+}
+
+async function selectRoomNumber(roomNumber) {
+  if (!roomNumber || roomNumber === selectedRoomNumber) {
+    return;
+  }
+
+  selectedRoomNumber = roomNumber;
+  syncRoomSelection();
+
+  const selectedButton = document.querySelector(
+    `[data-room-number="${roomNumber}"]`
+  );
+  selectedButton?.removeAttribute("aria-invalid");
+
+  if (activeReservationErrorInput?.matches?.("[data-room-number]")) {
+    activeReservationErrorInput.removeAttribute("aria-invalid");
+    activeReservationErrorInput = null;
+    reservationMessage.textContent = "";
+    reservationMessage.classList.remove("error");
+  }
+
+  resetDateRangeSelection();
+  await loadBookedSlots(roomNumber);
 }
 
 function sanitizeProfessorName(value) {
@@ -335,6 +393,10 @@ function getDateStatus(dateValue) {
     return { available: false, label: "주말 선택 불가" };
   }
 
+  if (!selectedRoomNumber) {
+    return { available: false, label: "호실 선택 필요" };
+  }
+
   if (!bookedSlotsLoaded) {
     return {
       available: false,
@@ -437,7 +499,9 @@ function syncDateRangeSelection() {
     calendarValue.textContent = "시작일 ~ 종료일";
     selectedDateSummary.textContent = "선택 전";
 
-    if (bookedSlotsLoadFailed) {
+    if (!selectedRoomNumber) {
+      dateRangeMessage.textContent = "사용할 호실을 먼저 선택해 주세요.";
+    } else if (bookedSlotsLoadFailed) {
       dateRangeMessage.textContent =
         "예약 현황을 불러오지 못했습니다. 페이지를 새로고침해 주세요.";
       dateRangeMessage.classList.add("error");
@@ -541,7 +605,13 @@ function renderReservationCalendar() {
   });
 }
 
-async function loadBookedSlots() {
+async function loadBookedSlots(roomNumber = selectedRoomNumber) {
+  if (!roomNumber) {
+    resetRoomSelection();
+    return;
+  }
+
+  const requestId = ++bookedSlotsRequestId;
   bookedSlotsLoaded = false;
   bookedSlotsLoadFailed = false;
   syncDateRangeSelection();
@@ -550,12 +620,17 @@ async function loadBookedSlots() {
   const minimumValue = toDateValue(calendarMinimumDate);
   const maximumExclusive = addDays(toDateValue(calendarMaximumDate), 1);
   const { data, error } = await supabase.rpc(
-    "get_reservation_blocked_slots",
+    "get_graduate_room_blocked_slots",
     {
+      p_room_number: Number(roomNumber),
       p_from: new Date(`${minimumValue}T00:00:00+09:00`).toISOString(),
       p_to: new Date(`${maximumExclusive}T00:00:00+09:00`).toISOString()
     }
   );
+
+  if (requestId !== bookedSlotsRequestId || roomNumber !== selectedRoomNumber) {
+    return;
+  }
 
   if (error) {
     bookedSlots = [];
@@ -642,6 +717,7 @@ function collectReservationValues() {
     graduationProfessor: normalizeProfessorName(
       graduationProfessorInput.value
     ),
+    roomNumber: selectedRoomNumber,
     equipment: equipmentInput.value.trim(),
     purpose: purposeInput.value.trim(),
     startDate: selectedStartDate,
@@ -673,6 +749,13 @@ function collectReservationValues() {
     throw createReservationValidationError(
       "지도교수님 이름은 완성형 한글 또는 영문으로 2글자 이상 입력해 주세요. (예: 홍길동)",
       graduationProfessorInput
+    );
+  }
+
+  if (!values.roomNumber) {
+    throw createReservationValidationError(
+      "사용할 호실을 선택해 주세요.",
+      roomButtons[0]
     );
   }
 
@@ -763,6 +846,7 @@ reservationForm.addEventListener("submit", async (event) => {
         p_department: values.department,
         p_student_id: values.studentId,
         p_graduation_professor: values.graduationProfessor,
+        p_room_number: Number(values.roomNumber),
         p_purpose: values.purpose,
         p_equipment: values.equipment,
         p_start_date: values.startDate,
@@ -787,7 +871,7 @@ reservationForm.addEventListener("submit", async (event) => {
     }
 
     setDateLimits();
-    await loadBookedSlots();
+    resetRoomSelection();
   } catch (error) {
     reservationMessage.textContent = error.message;
     reservationMessage.classList.add("error");
@@ -807,7 +891,7 @@ async function initialize() {
     const profile = await loadProfile();
     setDateLimits();
     await ensureReservationTeam(profile);
-    await loadBookedSlots();
+    resetRoomSelection();
   } catch (error) {
     reservationMessage.textContent = error.message;
     reservationMessage.classList.add("error");

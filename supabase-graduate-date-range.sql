@@ -1,5 +1,6 @@
 -- reservation-graduate 전용 날짜 기간 예약 기능
--- 기존 SQL 14개를 모두 실행한 뒤 Supabase SQL Editor에서 이 파일 전체를 한 번 실행하세요.
+-- 기존 SQL 14개를 모두 실행한 뒤 Supabase SQL Editor에서 이 파일 전체를 실행하세요.
+-- 이전 버전을 이미 실행한 프로젝트도 호실 기능 적용을 위해 이 파일을 다시 실행해야 합니다.
 -- 기존 예약은 시간 예약(hourly)으로 보존하며 삭제하지 않습니다.
 
 begin;
@@ -29,6 +30,27 @@ $$;
 alter table public.reservations
 add column if not exists graduation_professor text;
 
+alter table public.reservations
+add column if not exists room_number smallint;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'reservations_room_number_check'
+      and conrelid = 'public.reservations'::regclass
+  ) then
+    alter table public.reservations
+    add constraint reservations_room_number_check
+    check (room_number is null or room_number between 705 and 710);
+  end if;
+end;
+$$;
+
+create index if not exists reservations_room_start_idx
+on public.reservations (room_number, start_at);
+
 -- 졸업생용 예약은 사용 인원과 시간 누적 제한을 사용하지 않습니다.
 -- 예약자 한 명은 수료증 제출을 위해 reservation_members에 계속 저장합니다.
 drop trigger if exists trigger_enforce_participant_daily_limit
@@ -36,6 +58,60 @@ on public.reservation_members;
 
 drop trigger if exists trigger_enforce_participant_weekly_limit
 on public.reservation_members;
+
+-- 선택한 호실의 예약만 달력에서 막습니다.
+-- 호실 기능 도입 전의 기존 예약(room_number is null)은 안전을 위해 모든 호실을 막습니다.
+create or replace function public.get_graduate_room_blocked_slots(
+  p_room_number integer,
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  id uuid,
+  start_at timestamptz,
+  end_at timestamptz,
+  effective_end_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if p_room_number is null or p_room_number not between 705 and 710 then
+    raise exception '사용할 호실은 705호부터 710호까지 선택할 수 있습니다.'
+      using errcode = '22023';
+  end if;
+
+  return query
+  select
+    reservation.id,
+    reservation.start_at,
+    reservation.end_at,
+    reservation.effective_end_at
+  from public.reservations as reservation
+  where reservation.status::text <> 'cancelled'
+    and (
+      reservation.room_number = p_room_number
+      or reservation.room_number is null
+    )
+    and reservation.start_at < p_to
+    and reservation.effective_end_at > p_from
+  order by reservation.start_at;
+end;
+$$;
+
+revoke all on function public.get_graduate_room_blocked_slots(
+  integer,
+  timestamptz,
+  timestamptz
+) from public;
+
+grant execute on function public.get_graduate_room_blocked_slots(
+  integer,
+  timestamptz,
+  timestamptz
+) to authenticated;
 
 create or replace function public.create_graduate_date_range_reservation(
   p_team_id uuid,
@@ -45,6 +121,7 @@ create or replace function public.create_graduate_date_range_reservation(
   p_department text,
   p_student_id text,
   p_graduation_professor text,
+  p_room_number integer,
   p_purpose text,
   p_equipment text,
   p_start_date date,
@@ -60,6 +137,7 @@ declare
   v_reservation_id uuid;
   v_requester_email text;
   v_professor_name text;
+  v_room_number smallint;
   v_today date;
   v_start_at timestamptz;
   v_end_at timestamptz;
@@ -120,6 +198,13 @@ begin
       using errcode = '22023';
   end if;
 
+  if p_room_number is null or p_room_number not between 705 and 710 then
+    raise exception '사용할 호실은 705호부터 710호까지 선택해 주세요.'
+      using errcode = '22023';
+  end if;
+
+  v_room_number := p_room_number::smallint;
+
   if p_start_date is null or p_end_date is null then
     raise exception '시작 날짜와 종료 날짜를 모두 선택해 주세요.'
       using errcode = '22023';
@@ -167,15 +252,22 @@ begin
     p_end_date + time '18:00'
   ) at time zone 'Asia/Seoul';
 
-  -- 두 사용자가 동시에 같은 날짜를 신청해도 한 건만 저장되도록 직렬화합니다.
+  -- 같은 호실에 동시에 신청해도 중복 예약이 생기지 않도록 호실별로 직렬화합니다.
   perform pg_advisory_xact_lock(
-    hashtextextended('graduate-room-date-range', 0)
+    hashtextextended(
+      'graduate-room-date-range-' || v_room_number::text,
+      0
+    )
   );
 
   if exists (
     select 1
     from public.reservations as reservation
     where reservation.status::text <> 'cancelled'
+      and (
+        reservation.room_number = v_room_number
+        or reservation.room_number is null
+      )
       and reservation.start_at < v_end_at
       and reservation.effective_end_at > v_start_at
   ) then
@@ -192,6 +284,7 @@ begin
     student_id,
     headcount,
     graduation_professor,
+    room_number,
     purpose,
     equipment,
     start_at,
@@ -209,6 +302,7 @@ begin
     trim(p_student_id),
     1,
     v_professor_name,
+    v_room_number,
     trim(p_purpose),
     trim(p_equipment),
     v_start_at,
@@ -244,6 +338,7 @@ revoke all on function public.create_graduate_date_range_reservation(
   text,
   text,
   text,
+  integer,
   text,
   text,
   date,
@@ -259,6 +354,7 @@ grant execute on function public.create_graduate_date_range_reservation(
   text,
   text,
   text,
+  integer,
   text,
   text,
   date,
@@ -266,10 +362,21 @@ grant execute on function public.create_graduate_date_range_reservation(
   boolean
 ) to authenticated;
 
+-- 이전 버전의 호실 없는 예약 함수가 남아 있으면 더 이상 호출하지 못하게 합니다.
+do $$
+begin
+  if to_regprocedure(
+    'public.create_graduate_date_range_reservation(uuid,text,text,text,text,text,text,text,text,date,date,boolean)'
+  ) is not null then
+    execute 'revoke all on function public.create_graduate_date_range_reservation(uuid,text,text,text,text,text,text,text,text,date,date,boolean) from authenticated';
+  end if;
+end;
+$$;
+
 commit;
 
 select
   'function:create_graduate_date_range_reservation' as check_name,
   to_regprocedure(
-    'public.create_graduate_date_range_reservation(uuid,text,text,text,text,text,text,text,text,date,date,boolean)'
+    'public.create_graduate_date_range_reservation(uuid,text,text,text,text,text,text,integer,text,text,date,date,boolean)'
   ) is not null as installed;

@@ -86,6 +86,13 @@ function isDateRangeReservation(reservation) {
   return reservation.reservation_mode === "date_range";
 }
 
+function formatRoomNumber(value) {
+  const roomNumber = Number(value);
+  return roomNumber >= 705 && roomNumber <= 710
+    ? `${roomNumber}호`
+    : "호실 미지정";
+}
+
 function formatReservationDateRange(reservation) {
   const startLabel = formatDateOnly(reservation.start_at);
   const endLabel = formatDateOnly(reservation.end_at);
@@ -332,7 +339,11 @@ function renderReservations() {
           <div class="reservation-heading">
             <div>
               <p class="eyebrow">Reservation</p>
-              <h2>${escapeHtml(reservation.teams?.team_name ?? "팀")}</h2>
+              <h2>${escapeHtml(
+                isDateRange
+                  ? formatRoomNumber(reservation.room_number)
+                  : reservation.teams?.team_name ?? "팀"
+              )}</h2>
             </div>
             <div class="reservation-status-group">
               <span class="status-badge ${approvalStatus.className}">

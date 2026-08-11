@@ -244,6 +244,13 @@ function isDateRangeReservation(reservation) {
   return reservation.reservation_mode === "date_range";
 }
 
+function formatRoomNumber(value) {
+  const roomNumber = Number(value);
+  return roomNumber >= 705 && roomNumber <= 710
+    ? `${roomNumber}호`
+    : "호실 미지정";
+}
+
 function getReservationEndDateKey(reservation) {
   const { year, month, day } = getDateParts(reservation.end_at);
   return makeDateKey(year, month, day);
@@ -942,7 +949,10 @@ function openReservationDetails(reservationId) {
             <span class="admin-detail-date">
               ${escapeHtml(formatReservationDateRange(reservation))}
             </span>
-            <strong>${selectedDateCount}일 기간 예약</strong>
+            <strong>
+              ${escapeHtml(formatRoomNumber(reservation.room_number))}
+              · ${selectedDateCount}일 기간 예약
+            </strong>
             <small>선택한 평일 기간 동안 이용</small>
           `
           : `
@@ -1088,6 +1098,10 @@ function openReservationDetails(reservationId) {
     <section class="admin-detail-section">
       <h3>이용 정보</h3>
       <dl class="admin-detail-grid">
+        ${renderDetailItem(
+          "사용 호실",
+          formatRoomNumber(reservation.room_number)
+        )}
         ${renderDetailItem("사용할 장비", reservation.equipment || "없음")}
         ${renderDetailItem(
           "예약 신청 일시",
@@ -1269,20 +1283,21 @@ function renderReservation(reservation) {
   const approvalStatus = getApprovalStatusInfo(
     reservation.approval_status ?? "approved"
   );
+  const roomLabel = formatRoomNumber(reservation.room_number);
 
   return `
     <button
       type="button"
       class="calendar-reservation-item"
       data-reservation-id="${escapeHtml(reservation.id)}"
-      aria-label="${escapeHtml(requesterName)} ${isDateRange ? "기간 예약" : `${escapeHtml(startTime)}부터 ${escapeHtml(endTime)}까지`} 상세정보 보기"
+      aria-label="${escapeHtml(requesterName)} ${isDateRange ? `${roomLabel} 기간 예약` : `${escapeHtml(startTime)}부터 ${escapeHtml(endTime)}까지`} 상세정보 보기"
     >
       <strong class="calendar-reservation-name">
         ${escapeHtml(requesterName)}
       </strong>
       <span class="calendar-reservation-time">
         ${isDateRange
-          ? `<strong class="calendar-start-time">기간 예약</strong>`
+          ? `<strong class="calendar-start-time">${escapeHtml(roomLabel)} · 기간 예약</strong>`
           : `
             <strong class="calendar-start-time">
               ${escapeHtml(startTime)}
