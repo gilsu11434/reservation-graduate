@@ -2,10 +2,10 @@ import { createClient } from
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const supabaseUrl =
-  "https://lnbqbtoqcajqwhupkvid.supabase.co";
+  "https://aiisywurrvvipihwklcd.supabase.co";
 
 const supabasePublishableKey =
-  "sb_publishable__0ybYkAl9p4aOLw5yV6Fag_ey8qQ3Oq";
+  "sb_publishable_4gWGQfB_N49el7t6v6UPUg_jeQjCAZh";
 
 export const supabase = createClient(
   supabaseUrl,

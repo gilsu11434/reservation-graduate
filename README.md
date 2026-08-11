@@ -12,31 +12,33 @@
 - `suggestions.html`: 제목·가린 작성자 공개, 작성자 삭제 및 비공개 사진 첨부
 - `styles/style.css`: 전체 공통 디자인
 - `scripts`: Supabase 연결과 페이지 기능
+- `supabase-setup.sql`: 빈 Supabase 프로젝트의 기본 테이블·함수·RLS 최초 설치
 - `supabase-reservation-approval-workflow.sql`: 예약·이용확인서 관리자 승인 흐름
 - `supabase-certificate-review.sql`: 수료증 경로 저장과 관리자 승인·반려
 
 ## 최초 설정
 
-1. Supabase의 `Authentication > Sign In / Providers > Email`에서 `Confirm email`을 켭니다.
-2. `Authentication > URL Configuration`의 `Site URL`을 실제 배포 주소로 설정하고, `Redirect URLs`에 실제 `login.html` 주소를 추가합니다.
-3. Supabase의 `SQL Editor`에서 `supabase-auto-approve.sql` 전체를 한 번 실행합니다.
-4. 참여자 입력 기능을 사용하려면 `supabase-participant-fields.sql` 전체를 한 번 실행합니다.
-5. 이메일 로그인과 참여자 이메일 검증을 위해 `supabase-member-email.sql` 전체를 한 번 실행합니다.
-6. 참여자 개인별 일일 2시간 제한을 위해 `supabase-participant-daily-limit.sql` 전체를 한 번 실행합니다.
-7. 참여자 개인별 주간 4시간 제한을 위해 `supabase-participant-weekly-limit.sql` 전체를 한 번 실행합니다.
-8. 예약 가능 범위를 14일로 적용하려면 `supabase-reservation-window-14-days.sql` 전체를 한 번 실행합니다.
-9. 관리자 예약 상세화면에서 참여자 정보를 확인하려면 `supabase-admin-reservation-details.sql` 전체를 한 번 실행합니다.
-10. 건의사항 게시판을 사용하려면 `supabase-suggestions.sql` 전체를 한 번 실행합니다.
-    제목과 가운데가 `*`로 가려진 작성자는 공개됩니다. 본문과 첨부 사진은 관리자와 작성자 본인만 조회할 수 있고, 작성자는 자신의 게시글을 삭제할 수 있습니다.
-11. 수료증과 이용확인서 업로드를 위해 `supabase-storage-buckets.sql` 전체를 한 번 실행합니다.
-    실행 후 Storage에 `safety-certificates`, `usage-reports` Bucket이 생성되었는지 확인합니다.
-12. 이용확인서 제출 기록을 저장할 수 있도록 `supabase-usage-reports-policy.sql` 전체를 한 번 실행합니다.
-    마지막 조회 결과에 `usage_reports_insert_by_owner` 정책이 보이면 정상입니다.
-13. 수료증 저장, 파일 없는 승인 및 승인 취소 기능을 위해 `supabase-certificate-review.sql` 전체를 한 번 실행합니다.
-14. 예약 승인제, 이용확인서의 파일 없는 승인·승인 취소 및 다음 예약 기능을 위해 `supabase-reservation-approval-workflow.sql` 전체를 한 번 실행합니다.
-    기존 예약은 그대로 유지되며, 이 SQL을 실행한 뒤 만들어지는 예약부터 새 승인 흐름이 적용됩니다.
-15. `scripts/config.js`의 Supabase URL과 Publishable Key가 현재 프로젝트 값인지 확인합니다.
-16. VS Code에서 `index.html`을 열고 Live Server를 실행합니다.
+1. 기존 학생용 프로젝트와 다른 새 Supabase 프로젝트를 만듭니다.
+2. `SQL Editor > New query`에서 아래 파일을 한 번에 하나씩 순서대로 실행합니다.
+   1. `supabase-setup.sql`
+   2. `supabase-auto-approve.sql`
+   3. `supabase-participant-fields.sql`
+   4. `supabase-member-email.sql`
+   5. `supabase-participant-daily-limit.sql`
+   6. `supabase-participant-weekly-limit.sql`
+   7. `supabase-reservation-window-14-days.sql`
+   8. `supabase-admin-reservation-details.sql`
+   9. `supabase-suggestions.sql`
+   10. `supabase-storage-buckets.sql`
+   11. `supabase-usage-reports-policy.sql`
+   12. `supabase-certificate-review.sql`
+   13. `supabase-reservation-approval-workflow.sql`
+   14. `supabase-professor-name-validation.sql`
+3. 신규 프로젝트에서는 `supabase-fix-usage-reports-created-at.sql`과 `supabase-manual-usage-report-approval.sql`을 실행하지 않습니다.
+4. Supabase의 `Authentication > Sign In / Providers > Email`에서 `Confirm email`을 켭니다.
+5. `Authentication > URL Configuration`의 `Site URL`을 `https://gilsu11434.github.io/reservation-graduate/`로 설정하고, `Redirect URLs`에 `https://gilsu11434.github.io/reservation-graduate/login.html`을 추가합니다.
+6. `scripts/config.js`의 `YOUR_PROJECT_ID`와 `YOUR_SUPABASE_PUBLISHABLE_KEY`를 새 프로젝트 값으로 교체합니다. Secret key나 `service_role` 키는 브라우저 코드에 넣지 않습니다.
+7. VS Code에서 `index.html`을 열고 Live Server로 먼저 시험합니다.
 
 신규 회원은 가입한 이메일로 로그인합니다. 기존 학번 기반 계정도 `profiles.email`에 저장된 이메일로 로그인할 수 있습니다.
 
