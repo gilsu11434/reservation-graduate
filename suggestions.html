@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="description"
+    content="창의융합프로젝트실 이용 건의사항 게시판"
+  >
+  <title>건의사항 - 창의융합프로젝트실</title>
+  <link rel="stylesheet" href="./styles/style.css?v=20260809-suggestion-images">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="./index.html" aria-label="창의융합프로젝트실 홈">
+      <span class="brand-mark" aria-hidden="true">융</span>
+      <span class="brand-copy">
+        <strong>창의융합프로젝트실</strong>
+        <small>Suggestions</small>
+      </span>
+    </a>
+
+    <nav class="app-nav" aria-label="주요 메뉴">
+      <a href="./suggestions.html" aria-current="page">건의사항</a>
+      <a href="./index.html">이용 안내</a>
+      <a id="suggestion-auth-link" class="nav-primary" href="./login.html">
+        로그인 · 예약
+      </a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Suggestions</p>
+        <h1>건의사항</h1>
+        <p>
+          창의융합프로젝트실 이용 중 불편했던 점이나 개선 아이디어를
+          자유롭게 남겨주세요. 제목과 가려진 작성자 이름은 공개되며,
+          본문과 첨부 사진은 관리자와 작성자 본인만 열람할 수 있습니다.
+        </p>
+      </div>
+      <a class="button" href="#suggestion-form-card">건의 작성</a>
+    </div>
+
+    <div id="suggestion-message" class="message" role="status" hidden></div>
+
+    <div class="suggestion-layout">
+      <section id="suggestion-form-card" class="card suggestion-form-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">New suggestion</p>
+            <h2>새 건의 작성</h2>
+          </div>
+          <span class="icon-box" aria-hidden="true">＋</span>
+        </div>
+
+        <div id="suggestion-login-prompt" class="suggestion-login-prompt" hidden>
+          <strong>로그인 후 작성할 수 있습니다.</strong>
+          <p>회원가입 또는 로그인한 뒤 건의사항을 남겨주세요.</p>
+          <a class="button" href="./login.html">로그인하러 가기</a>
+        </div>
+
+        <form id="suggestion-form" hidden>
+          <label class="field">
+            제목
+            <input
+              id="suggestion-title"
+              maxlength="100"
+              autocomplete="off"
+              placeholder="건의사항 제목을 입력하세요"
+              required
+            >
+            <span class="field-help">최대 100자</span>
+          </label>
+
+          <label class="field">
+            내용
+            <textarea
+              id="suggestion-content"
+              maxlength="2000"
+              placeholder="불편했던 점이나 개선 아이디어를 자세히 작성해 주세요."
+              required
+            ></textarea>
+            <span class="field-help">최대 2,000자 · 본문은 관리자와 작성자만 확인하며 이름은 가운데가 *로 표시됩니다.</span>
+          </label>
+
+          <label class="field">
+            사진 첨부 <span class="optional">(선택)</span>
+            <input
+              id="suggestion-images"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+            >
+            <span class="field-help">JPG, PNG, WEBP · 최대 3장 · 장당 5MB 이하 · 관리자와 작성자만 확인 가능</span>
+          </label>
+
+          <div
+            id="suggestion-image-preview"
+            class="suggestion-image-preview"
+            aria-label="첨부 사진 미리보기"
+            hidden
+          ></div>
+
+          <div class="form-actions">
+            <button id="suggestion-submit-button" type="submit">
+              건의 접수
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card suggestion-list-card">
+        <div class="suggestion-list-heading">
+          <div>
+            <p class="eyebrow">Board</p>
+            <h2 id="suggestion-list-title">등록된 건의사항</h2>
+          </div>
+          <div class="suggestion-list-actions">
+            <span id="suggestion-count" class="status-badge">0건</span>
+            <button
+              id="suggestion-refresh-button"
+              class="button-secondary suggestion-refresh-button"
+              type="button"
+            >
+              새로고침
+            </button>
+          </div>
+        </div>
+
+        <div id="suggestion-list" class="suggestion-list" aria-live="polite">
+          <p class="muted">건의사항을 불러오는 중입니다.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer-note">
+    창의융합프로젝트실 · 207관 605-1호
+  </footer>
+
+  <script type="module" src="./scripts/suggestions.js?v=20260809-suggestion-images"></script>
+</body>
+</html>
