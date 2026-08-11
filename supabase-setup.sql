@@ -17,6 +17,7 @@
 -- 11) supabase-certificate-review.sql
 -- 12) supabase-reservation-approval-workflow.sql
 -- 13) supabase-professor-name-validation.sql
+-- 14) supabase-graduate-date-range.sql
 --
 -- 신규 프로젝트에서는 supabase-fix-usage-reports-created-at.sql과
 -- supabase-manual-usage-report-approval.sql을 실행하지 않습니다.

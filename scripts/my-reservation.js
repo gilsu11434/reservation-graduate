@@ -72,6 +72,31 @@ function formatDate(value) {
   });
 }
 
+function formatDateOnly(value) {
+  return new Date(value).toLocaleDateString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short"
+  });
+}
+
+function isDateRangeReservation(reservation) {
+  return reservation.reservation_mode === "date_range";
+}
+
+function formatReservationDateRange(reservation) {
+  const startLabel = formatDateOnly(reservation.start_at);
+  const endLabel = formatDateOnly(reservation.end_at);
+  const startDate = formatFileDate(reservation.start_at);
+  const endDate = formatFileDate(reservation.end_at);
+
+  return startDate === endDate
+    ? startLabel
+    : `${startLabel} ~ ${endLabel}`;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -84,10 +109,11 @@ function escapeHtml(value) {
 function formatProfessorName(value) {
   const name = String(value ?? "")
     .trim()
+    .replace(/\s*교수님\s*연구실\s*$/, "")
     .replace(/\s*교수님\s*$/, "")
     .trim();
 
-  return name ? `${name} 교수님` : "-";
+  return name ? `${name} 교수님 연구실` : "-";
 }
 
 function getStatusLabel(status) {
@@ -297,6 +323,7 @@ function renderReservations() {
         (reservation.approval_status ?? "approved") === "approved";
       const reservationCancelled =
         reservation.status === "cancelled";
+      const isDateRange = isDateRangeReservation(reservation);
 
       const status = escapeHtml(reservation.status);
 
@@ -319,10 +346,11 @@ function renderReservations() {
 
           <div class="reservation-meta">
             <div class="meta-item">
-              <span>이용 시간</span>
+              <span>${isDateRange ? "예약 날짜" : "이용 시간"}</span>
               <strong>
-                ${formatDate(reservation.start_at)}<br>
-                ${formatDate(reservation.end_at)}
+                ${isDateRange
+                  ? escapeHtml(formatReservationDateRange(reservation))
+                  : `${formatDate(reservation.start_at)}<br>${formatDate(reservation.end_at)}`}
               </strong>
             </div>
             <div class="meta-item">
@@ -330,11 +358,13 @@ function renderReservations() {
               <strong>${escapeHtml(reservation.purpose)}</strong>
             </div>
             <div class="meta-item">
-              <span>인원 · 수료증</span>
-              <strong>${reservation.headcount}명 · ${submittedCertificateCount}/${reservation.headcount}건</strong>
+              <span>${isDateRange ? "수료증" : "인원 · 수료증"}</span>
+              <strong>${isDateRange
+                ? `${submittedCertificateCount}/1건`
+                : `${reservation.headcount}명 · ${submittedCertificateCount}/${reservation.headcount}건`}</strong>
             </div>
             <div class="meta-item">
-              <span>종합설계 지도교수님</span>
+              <span>지도교수님</span>
               <strong>${escapeHtml(formatProfessorName(reservation.graduation_professor))}</strong>
             </div>
           </div>
@@ -357,7 +387,7 @@ function renderReservations() {
 
           <div class="workflow-grid">
             <section class="workflow-panel">
-              <h3>참여자 수료증</h3>
+              <h3>${isDateRange ? "예약자 수료증" : "참여자 수료증"}</h3>
               <p>PDF, JPG, PNG · 최대 10MB</p>
               ${
                 members.length === 0
@@ -407,21 +437,23 @@ function renderReservations() {
               }
             </section>
 
-            <section class="workflow-panel">
-              <h3>연장 신청</h3>
-              <p>필요한 연장 시간과 사유를 입력하세요.</p>
-              ${
-                reservationApproved && !usageEnded && !reservationCancelled
-                  ? `
-                    <form class="extension-form" data-id="${reservation.id}">
-                      <input name="minutes" type="number" min="1" max="120" placeholder="연장시간(분)" aria-label="연장시간" required>
-                      <input name="reason" placeholder="연장 사유" aria-label="연장 사유" required>
-                      <button type="submit">연장 신청</button>
-                    </form>
-                  `
-                  : `<div class="workflow-state-note">승인된 이용 시작 전 예약만 연장을 신청할 수 있습니다.</div>`
-              }
-            </section>
+            ${isDateRange
+              ? ""
+              : `
+                <section class="workflow-panel">
+                  <h3>연장 신청</h3>
+                  <p>필요한 연장 시간과 사유를 입력하세요.</p>
+                  ${reservationApproved && !usageEnded && !reservationCancelled
+                    ? `
+                      <form class="extension-form" data-id="${reservation.id}">
+                        <input name="minutes" type="number" min="1" max="120" placeholder="연장시간(분)" aria-label="연장시간" required>
+                        <input name="reason" placeholder="연장 사유" aria-label="연장 사유" required>
+                        <button type="submit">연장 신청</button>
+                      </form>
+                    `
+                    : `<div class="workflow-state-note">승인된 이용 시작 전 예약만 연장을 신청할 수 있습니다.</div>`}
+                </section>
+              `}
 
             <section class="workflow-panel">
               <h3>이용확인서</h3>

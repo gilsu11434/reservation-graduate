@@ -1,6 +1,8 @@
 import { createClient } from
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
+// reservation-graduate 전용 Supabase 설정입니다.
+// reservation-student 프로젝트의 URL/Key로 교체하지 마세요.
 const supabaseUrl =
   "https://aiisywurrvvipihwklcd.supabase.co";
 

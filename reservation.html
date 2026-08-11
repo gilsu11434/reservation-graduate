@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 온라인 예약 신청">
   <title>호실 예약 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260811-graduate-blue">
+  <link rel="stylesheet" href="./styles/style.css?v=20260811-graduate-date-range">
 </head>
 <body>
   <header class="app-header">
@@ -76,7 +76,7 @@
             </label>
 
             <label class="field field-full">
-              종합설계 지도교수님
+              지도교수님
               <span class="professor-name-input">
                 <input
                   id="graduation-professor"
@@ -84,54 +84,12 @@
                   maxlength="30"
                   size="3"
                   autocomplete="off"
-                  aria-label="종합설계 지도교수님 이름"
+                  aria-label="지도교수님 이름"
                   required
                 >
-                <span class="professor-name-suffix" aria-hidden="true">교수님</span>
+                <span class="professor-name-suffix" aria-hidden="true">교수님 연구실</span>
               </span>
             </label>
-
-            <fieldset class="field field-full headcount-fieldset">
-              <legend>사용 인원</legend>
-              <p class="field-help">예약자를 포함한 전체 인원을 클릭해 주세요.</p>
-              <div
-                id="headcount-picker"
-                class="headcount-picker"
-                role="group"
-                aria-label="사용 인원 선택"
-              >
-                <button type="button" data-headcount="1">1명</button>
-                <button type="button" data-headcount="2">2명</button>
-                <button type="button" data-headcount="3">3명</button>
-                <button type="button" data-headcount="4">4명</button>
-                <button type="button" data-headcount="5">5명</button>
-                <button type="button" data-headcount="6">6명</button>
-                <button type="button" data-headcount="7">7명</button>
-                <button type="button" data-headcount="8">8명</button>
-                <button type="button" data-headcount="9">9명</button>
-                <button type="button" data-headcount="10">10명</button>
-              </div>
-              <input id="headcount" type="hidden" value="">
-            </fieldset>
-
-            <section
-              id="participants-section"
-              class="participants-section field-full"
-              aria-labelledby="participants-title"
-              hidden
-            >
-              <div class="participants-heading">
-                <div>
-                  <p class="eyebrow">Participants</p>
-                  <h3 id="participants-title">참여자 정보</h3>
-                </div>
-                <span id="participant-summary" class="status-badge"></span>
-              </div>
-              <p class="field-help">
-                예약자는 자동으로 포함됩니다. 추가 참여자의 이름, 학번, 가입 이메일을 입력해 주세요.
-              </p>
-              <div id="participant-fields" class="participant-fields"></div>
-            </section>
 
             <label class="field">
               사용할 장비
@@ -143,7 +101,7 @@
               <textarea id="purpose" placeholder="프로젝트와 사용 목적을 작성해 주세요." aria-required="true"></textarea>
             </label>
 
-            <div class="field reservation-calendar-field">
+            <div class="field field-full reservation-calendar-field">
               <div class="reservation-date-heading">
                 <span class="field-label">예약 날짜</span>
                 <div class="calendar-status-legend" aria-hidden="true">
@@ -160,7 +118,7 @@
                   aria-haspopup="dialog"
                   aria-expanded="false"
                 >
-                  <span id="calendar-value">연도-월-일</span>
+                  <span id="calendar-value">시작일 ~ 종료일</span>
                   <svg class="calendar-icon" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"></path>
                   </svg>
@@ -185,71 +143,19 @@
                   <div id="calendar-days" class="calendar-days" role="grid"></div>
                 </div>
               </div>
-              <input id="reservation-date" type="hidden" value="">
+              <input id="reservation-start-date" type="hidden" value="">
+              <input id="reservation-end-date" type="hidden" value="">
               <span class="field-help">
-                토요일과 일요일은 선택할 수 없습니다.
+                시작일과 종료일을 차례로 선택해 주세요. 하루만 예약하려면 같은 날짜를 한 번 더 누르세요. 주말·예약된 날짜는 선택할 수 없으며 최대 연속 평일 5일까지 가능합니다.
               </span>
-            </div>
-
-            <fieldset class="field field-full time-slot-fieldset">
-              <legend>예약 시간</legend>
-              <p class="field-help">
-                왼쪽에서 시작 시각을 선택한 다음 오른쪽에서 종료 시각을 선택해 주세요. 참여자별 하루 누적 최대 2시간, 일주일 누적 최대 4시간까지 이용할 수 있습니다.
-              </p>
-              <div class="time-slot-legend" aria-hidden="true">
-                <span><i class="available"></i>예약 가능</span>
-                <span><i class="selected"></i>선택 시간</span>
-                <span><i class="unavailable"></i>예약됨·이용 불가</span>
-              </div>
-              <div class="time-choice-columns">
-                <section class="time-choice-group" aria-labelledby="start-time-heading">
-                  <h3 id="start-time-heading">시작 시각</h3>
-                  <div
-                    id="start-time-picker"
-                    class="time-choice-picker"
-                    role="group"
-                    aria-label="시작 시각 선택"
-                  >
-                    <button type="button" data-start-hour="10" disabled><span>10:00</span></button>
-                    <button type="button" data-start-hour="11" disabled><span>11:00</span></button>
-                    <button type="button" data-start-hour="12" disabled><span>12:00</span></button>
-                    <button type="button" data-start-hour="13" disabled><span>13:00</span></button>
-                    <button type="button" data-start-hour="14" disabled><span>14:00</span></button>
-                    <button type="button" data-start-hour="15" disabled><span>15:00</span></button>
-                    <button type="button" data-start-hour="16" disabled><span>16:00</span></button>
-                    <button type="button" data-start-hour="17" disabled><span>17:00</span></button>
-                  </div>
-                </section>
-
-                <section class="time-choice-group" aria-labelledby="end-time-heading">
-                  <h3 id="end-time-heading">종료 시각</h3>
-                  <div
-                    id="end-time-picker"
-                    class="time-choice-picker"
-                    role="group"
-                    aria-label="종료 시각 선택"
-                  >
-                    <button type="button" data-end-hour="11" disabled><span>11:00</span></button>
-                    <button type="button" data-end-hour="12" disabled><span>12:00</span></button>
-                    <button type="button" data-end-hour="13" disabled><span>13:00</span></button>
-                    <button type="button" data-end-hour="14" disabled><span>14:00</span></button>
-                    <button type="button" data-end-hour="15" disabled><span>15:00</span></button>
-                    <button type="button" data-end-hour="16" disabled><span>16:00</span></button>
-                    <button type="button" data-end-hour="17" disabled><span>17:00</span></button>
-                    <button type="button" data-end-hour="18" disabled><span>18:00</span></button>
-                  </div>
-                </section>
-              </div>
-              <input id="start-time" type="hidden" value="">
-              <input id="end-time" type="hidden" value="">
               <div class="final-time-summary" aria-live="polite">
-                <span>최종 선택 시간</span>
-                <strong id="selected-time-summary">선택 전</strong>
+                <span>최종 선택 날짜</span>
+                <strong id="selected-date-summary">선택 전</strong>
               </div>
-              <p id="time-slot-message" class="time-slot-message" role="status">
-                예약 날짜를 먼저 선택해 주세요.
+              <p id="date-range-message" class="time-slot-message" role="status">
+                시작 날짜를 선택해 주세요.
               </p>
-            </fieldset>
+            </div>
 
             <label class="checkbox-label field-full">
               <input id="rules-agreed" type="checkbox" required>
@@ -264,15 +170,14 @@
                 <span class="reservation-rules-icon" aria-hidden="true">!</span>
                 <div>
                   <h3 id="reservation-rules-title">이용수칙 안내</h3>
-                  <p>예약 신청 전 모든 참여자가 아래 내용을 확인해 주세요.</p>
+                  <p>예약 신청 전 아래 내용을 확인해 주세요.</p>
                 </div>
               </div>
 
               <ul class="reservation-rules-list">
-                <li>예약은 평일 10:00부터 18:00까지 정각 단위로 이용할 수 있습니다.</li>
-                <li>예약은 내일부터 14일 이내만 가능하며 토요일과 일요일은 이용할 수 없습니다.</li>
-                <li>모든 참여자는 가입된 이메일을 입력해야 하며, 참여자별 하루 최대 2시간·일주일 최대 4시간까지 이용할 수 있습니다.</li>
-                <li>이용 전 참여자의 안전교육 수료증을 제출하고, 이용 후에는 이용확인서를 제출해 주세요.</li>
+                <li>예약은 선택한 평일 기간 동안 이용할 수 있습니다.</li>
+                <li>예약은 내일부터 14일 이내만 가능하며, 주말·예약 불가일을 포함하지 않는 연속 평일 최대 5일까지 선택할 수 있습니다.</li>
+                <li>예약자는 이용 전 안전교육 수료증을 제출하고, 이용 후에는 이용확인서를 제출해 주세요.</li>
                 <li>사용한 장비의 전원을 종료하고 주변을 정리한 후 퇴실해 주세요.</li>
                 <li>시설물과 장비를 허가 없이 이동할 수 없으며 음식물 반입은 금지됩니다.</li>
                 <li>시설물의 파손이나 분실을 발견하면 즉시 관리자에게 알려야 하며, 이용 중 발생한 파손·분실은 이용자에게 책임이 있을 수 있습니다.</li>
@@ -290,6 +195,6 @@
     </div>
   </main>
 
-  <script type="module" src="./scripts/reservation.js?v=20260809-hide-reservation-number"></script>
+  <script type="module" src="./scripts/reservation.js?v=20260811-graduate-date-range"></script>
 </body>
 </html>

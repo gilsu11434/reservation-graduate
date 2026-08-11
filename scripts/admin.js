@@ -202,10 +202,11 @@ function showMessage(message, isError = false) {
 function formatProfessorName(value) {
   const name = String(value ?? "")
     .trim()
+    .replace(/\s*교수님\s*연구실\s*$/, "")
     .replace(/\s*교수님\s*$/, "")
     .trim();
 
-  return name ? `${name} 교수님` : "-";
+  return name ? `${name} 교수님 연구실` : "-";
 }
 
 function getDateParts(value = new Date()) {
@@ -237,6 +238,42 @@ function getReservationDateKey(reservation) {
   );
 
   return makeDateKey(year, month, day);
+}
+
+function isDateRangeReservation(reservation) {
+  return reservation.reservation_mode === "date_range";
+}
+
+function getReservationEndDateKey(reservation) {
+  const { year, month, day } = getDateParts(reservation.end_at);
+  return makeDateKey(year, month, day);
+}
+
+function getDateKeysInRange(startDate, endDate) {
+  const keys = [];
+  const current = new Date(`${startDate}T12:00:00Z`);
+  const last = new Date(`${endDate}T12:00:00Z`);
+
+  while (current <= last && keys.length <= 31) {
+    keys.push(makeDateKey(
+      current.getUTCFullYear(),
+      current.getUTCMonth() + 1,
+      current.getUTCDate()
+    ));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return keys;
+}
+
+function formatReservationDateRange(reservation) {
+  const startLabel = formatDateDetail(reservation.start_at);
+  const endLabel = formatDateDetail(reservation.end_at);
+
+  return getReservationDateKey(reservation) ===
+    getReservationEndDateKey(reservation)
+    ? startLabel
+    : `${startLabel} ~ ${endLabel}`;
 }
 
 function formatTime(value) {
@@ -865,7 +902,15 @@ function openReservationDetails(reservationId) {
 
   const effectiveEnd =
     reservation.effective_end_at || reservation.end_at;
+  const isDateRange = isDateRangeReservation(reservation);
+  const selectedDateCount = isDateRange
+    ? getDateKeysInRange(
+        getReservationDateKey(reservation),
+        getReservationEndDateKey(reservation)
+      ).length
+    : 0;
   const hasExtension =
+    !isDateRange &&
     new Date(effectiveEnd).getTime() >
     new Date(reservation.end_at).getTime();
   const status = escapeHtml(reservation.status || "unknown");
@@ -892,18 +937,28 @@ function openReservationDetails(reservationId) {
   reservationDetailContent.innerHTML = `
     <section class="admin-detail-summary">
       <div>
-        <span class="admin-detail-date">
-          ${escapeHtml(formatDateDetail(reservation.start_at))}
-        </span>
-        <strong>
-          ${escapeHtml(formatTime(reservation.start_at))}
-          <span aria-hidden="true">~</span>
-          ${escapeHtml(formatTime(effectiveEnd))}
-        </strong>
-        <small>
-          이용시간 ${escapeHtml(formatDuration(reservation.start_at, effectiveEnd))}
-          ${hasExtension ? " · 연장 포함" : ""}
-        </small>
+        ${isDateRange
+          ? `
+            <span class="admin-detail-date">
+              ${escapeHtml(formatReservationDateRange(reservation))}
+            </span>
+            <strong>${selectedDateCount}일 기간 예약</strong>
+            <small>선택한 평일 기간 동안 이용</small>
+          `
+          : `
+            <span class="admin-detail-date">
+              ${escapeHtml(formatDateDetail(reservation.start_at))}
+            </span>
+            <strong>
+              ${escapeHtml(formatTime(reservation.start_at))}
+              <span aria-hidden="true">~</span>
+              ${escapeHtml(formatTime(effectiveEnd))}
+            </strong>
+            <small>
+              이용시간 ${escapeHtml(formatDuration(reservation.start_at, effectiveEnd))}
+              ${hasExtension ? " · 연장 포함" : ""}
+            </small>
+          `}
       </div>
       <div class="reservation-status-group">
         <span class="status-badge ${approvalStatus.className}">
@@ -1016,15 +1071,17 @@ function openReservationDetails(reservationId) {
         ${renderDetailItem("학과", reservation.department)}
         ${renderDetailItem("학번", reservation.student_id)}
         ${renderDetailItem(
-          "종합설계 지도교수님",
+          "지도교수님",
           formatProfessorName(reservation.graduation_professor)
         )}
-        ${renderDetailItem(
-          "사용 인원",
-          reservation.headcount == null
-            ? "-"
-            : `${reservation.headcount}명`
-        )}
+        ${isDateRange
+          ? ""
+          : renderDetailItem(
+              "사용 인원",
+              reservation.headcount == null
+                ? "-"
+                : `${reservation.headcount}명`
+            )}
       </dl>
     </section>
 
@@ -1182,13 +1239,20 @@ function groupReservationsByDate() {
         new Date(first.start_at) - new Date(second.start_at)
     )
     .forEach((reservation) => {
-      const dateKey = getReservationDateKey(reservation);
+      const dateKeys = isDateRangeReservation(reservation)
+        ? getDateKeysInRange(
+            getReservationDateKey(reservation),
+            getReservationEndDateKey(reservation)
+          )
+        : [getReservationDateKey(reservation)];
 
-      if (!grouped.has(dateKey)) {
-        grouped.set(dateKey, []);
-      }
+      dateKeys.forEach((dateKey) => {
+        if (!grouped.has(dateKey)) {
+          grouped.set(dateKey, []);
+        }
 
-      grouped.get(dateKey).push(reservation);
+        grouped.get(dateKey).push(reservation);
+      });
     });
 
   return grouped;
@@ -1197,6 +1261,7 @@ function groupReservationsByDate() {
 function renderReservation(reservation) {
   const requesterName =
     reservation.requester_name || "이름 없음";
+  const isDateRange = isDateRangeReservation(reservation);
   const startTime = formatTime(reservation.start_at);
   const endTime = formatTime(
     reservation.effective_end_at || reservation.end_at
@@ -1210,17 +1275,21 @@ function renderReservation(reservation) {
       type="button"
       class="calendar-reservation-item"
       data-reservation-id="${escapeHtml(reservation.id)}"
-      aria-label="${escapeHtml(requesterName)} ${escapeHtml(startTime)}부터 ${escapeHtml(endTime)}까지 예약 상세정보 보기"
+      aria-label="${escapeHtml(requesterName)} ${isDateRange ? "기간 예약" : `${escapeHtml(startTime)}부터 ${escapeHtml(endTime)}까지`} 상세정보 보기"
     >
       <strong class="calendar-reservation-name">
         ${escapeHtml(requesterName)}
       </strong>
       <span class="calendar-reservation-time">
-        <strong class="calendar-start-time">
-          ${escapeHtml(startTime)}
-        </strong>
-        <span aria-hidden="true">~</span>
-        <span>${escapeHtml(endTime)}</span>
+        ${isDateRange
+          ? `<strong class="calendar-start-time">기간 예약</strong>`
+          : `
+            <strong class="calendar-start-time">
+              ${escapeHtml(startTime)}
+            </strong>
+            <span aria-hidden="true">~</span>
+            <span>${escapeHtml(endTime)}</span>
+          `}
       </span>
       <span class="calendar-approval-status ${approvalStatus.className}">
         ${escapeHtml(approvalStatus.label)}

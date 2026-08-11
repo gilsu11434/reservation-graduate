@@ -675,7 +675,8 @@ input[type="file"]::file-selector-button {
   box-shadow: 0 0 0 3px rgba(24, 64, 122, 0.12);
 }
 
-.calendar-input.has-value {
+.calendar-input.has-value,
+.calendar-input.complete {
   color: var(--text) !important;
 }
 
@@ -792,10 +793,17 @@ input[type="file"]::file-selector-button {
   background: var(--surface-accent) !important;
 }
 
-.calendar-day.selected {
+.calendar-day.selected,
+.calendar-day.in-range {
   border-color: var(--brand);
   color: #ffffff !important;
   background: var(--brand) !important;
+}
+
+.calendar-day.range-start,
+.calendar-day.range-end {
+  border-color: var(--brand-dark);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
 }
 
 .calendar-day:disabled,
