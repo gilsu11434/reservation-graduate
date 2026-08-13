@@ -702,15 +702,8 @@ input[type="file"]::file-selector-button {
 
 .room-picker-row {
   display: grid;
-  gap: 8px;
-}
-
-.room-picker-row-upper {
-  grid-template-columns: repeat(2, minmax(72px, 1fr));
-}
-
-.room-picker-row-lower {
   grid-template-columns: repeat(5, minmax(72px, 1fr));
+  gap: 8px;
 }
 
 .room-picker button {
@@ -2815,11 +2808,8 @@ input[type="file"]::file-selector-button {
   }
 
   .room-picker-row {
-    gap: 6px;
-  }
-
-  .room-picker-row-lower {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .room-picker button {
