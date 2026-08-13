@@ -1366,11 +1366,9 @@ input[type="file"]::file-selector-button {
 }
 
 .hero-contact {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 18px 34px;
-  max-width: 700px;
+  display: grid;
+  gap: 12px;
+  width: min(100%, 360px);
   margin-top: 24px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
@@ -1379,6 +1377,7 @@ input[type="file"]::file-selector-button {
 .hero-contact-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   color: var(--text-soft);
   font-size: 14px;
