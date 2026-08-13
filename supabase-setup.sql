@@ -1,7 +1,7 @@
 -- reservation-graduate 신규 Supabase 프로젝트 최초 설치 파일
 -- Supabase Dashboard > SQL Editor > New query에서 이 파일 전체를 실행하세요.
 -- 이 파일은 빈 Supabase 프로젝트를 기준으로 작성되었습니다.
--- 기존 창의융합실의 회원/예약 데이터는 복사하지 않고 구조와 권한만 생성합니다.
+-- 기존 서비스의 회원/예약 데이터는 복사하지 않고 구조와 권한만 생성합니다.
 --
 -- 실행 후 저장소에 포함된 추가 SQL을 아래 순서대로 실행하세요.
 --  1) supabase-auto-approve.sql
