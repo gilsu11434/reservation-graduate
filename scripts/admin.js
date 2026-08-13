@@ -246,7 +246,7 @@ function isDateRangeReservation(reservation) {
 
 function formatRoomNumber(value) {
   const roomNumber = Number(value);
-  return roomNumber >= 705 && roomNumber <= 710
+  return Number.isInteger(roomNumber) && roomNumber >= 100 && roomNumber <= 999
     ? `${roomNumber}호`
     : "호실 미지정";
 }

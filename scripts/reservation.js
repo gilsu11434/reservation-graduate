@@ -6,6 +6,9 @@ import {
 
 const SEOUL_TIME_ZONE = "Asia/Seoul";
 const MAX_RANGE_DAYS = 5;
+const ALLOWED_ROOM_NUMBERS = new Set([
+  "602", "603", "702", "703", "704", "705", "708"
+]);
 
 const reservationForm = document.getElementById("reservation-form");
 const requesterNameInput = document.getElementById("requester-name");
@@ -164,7 +167,10 @@ function resetRoomSelection() {
 }
 
 async function selectRoomNumber(roomNumber) {
-  if (!roomNumber || roomNumber === selectedRoomNumber) {
+  if (
+    !ALLOWED_ROOM_NUMBERS.has(roomNumber) ||
+    roomNumber === selectedRoomNumber
+  ) {
     return;
   }
 
@@ -752,7 +758,7 @@ function collectReservationValues() {
     );
   }
 
-  if (!values.roomNumber) {
+  if (!ALLOWED_ROOM_NUMBERS.has(values.roomNumber)) {
     throw createReservationValidationError(
       "사용할 호실을 선택해 주세요.",
       roomButtons[0]

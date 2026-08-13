@@ -1,6 +1,6 @@
 -- reservation-graduate 전용 날짜 기간 예약 기능
 -- 기존 SQL 14개를 모두 실행한 뒤 Supabase SQL Editor에서 이 파일 전체를 실행하세요.
--- 이전 버전을 이미 실행한 프로젝트도 호실 기능 적용을 위해 이 파일을 다시 실행해야 합니다.
+-- 이전 버전을 이미 실행한 프로젝트도 최신 호실 목록 적용을 위해 이 파일을 다시 실행해야 합니다.
 -- 기존 예약은 시간 예약(hourly)으로 보존하며 삭제하지 않습니다.
 
 begin;
@@ -33,20 +33,44 @@ add column if not exists graduation_professor text;
 alter table public.reservations
 add column if not exists room_number smallint;
 
-do $$
+-- 기존 호실 예약은 보존하되, 신규 예약과 호실 변경에는 최신 목록만 허용합니다.
+alter table public.reservations
+drop constraint if exists reservations_room_number_check;
+
+create or replace function public.enforce_graduate_room_catalog()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
 begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'reservations_room_number_check'
-      and conrelid = 'public.reservations'::regclass
-  ) then
-    alter table public.reservations
-    add constraint reservations_room_number_check
-    check (room_number is null or room_number between 705 and 710);
+  if tg_op = 'INSERT' then
+    if new.room_number is not null
+      and new.room_number not in (602, 603, 702, 703, 704, 705, 708) then
+      raise exception '사용할 호실은 602, 603, 702, 703, 704, 705, 708호 중에서 선택해 주세요.'
+        using errcode = '23514';
+    end if;
+  elsif new.room_number is distinct from old.room_number then
+    if new.room_number is not null
+      and new.room_number not in (602, 603, 702, 703, 704, 705, 708) then
+      raise exception '사용할 호실은 602, 603, 702, 703, 704, 705, 708호 중에서 선택해 주세요.'
+        using errcode = '23514';
+    end if;
   end if;
+
+  return new;
 end;
 $$;
+
+revoke all on function public.enforce_graduate_room_catalog() from public;
+
+drop trigger if exists trigger_enforce_graduate_room_catalog
+on public.reservations;
+
+create trigger trigger_enforce_graduate_room_catalog
+before insert or update of room_number
+on public.reservations
+for each row
+execute function public.enforce_graduate_room_catalog();
 
 create index if not exists reservations_room_start_idx
 on public.reservations (room_number, start_at);
@@ -78,8 +102,9 @@ security definer
 set search_path = public
 as $$
 begin
-  if p_room_number is null or p_room_number not between 705 and 710 then
-    raise exception '사용할 호실은 705호부터 710호까지 선택할 수 있습니다.'
+  if p_room_number is null
+    or p_room_number not in (602, 603, 702, 703, 704, 705, 708) then
+    raise exception '사용할 호실은 602, 603, 702, 703, 704, 705, 708호 중에서 선택할 수 있습니다.'
       using errcode = '22023';
   end if;
 
@@ -198,8 +223,9 @@ begin
       using errcode = '22023';
   end if;
 
-  if p_room_number is null or p_room_number not between 705 and 710 then
-    raise exception '사용할 호실은 705호부터 710호까지 선택해 주세요.'
+  if p_room_number is null
+    or p_room_number not in (602, 603, 702, 703, 704, 705, 708) then
+    raise exception '사용할 호실은 602, 603, 702, 703, 704, 705, 708호 중에서 선택해 주세요.'
       using errcode = '22023';
   end if;
 

@@ -696,9 +696,21 @@ input[type="file"]::file-selector-button {
 
 .room-picker {
   display: grid;
-  grid-template-columns: repeat(6, minmax(72px, 1fr));
   gap: 8px;
   margin-top: 8px;
+}
+
+.room-picker-row {
+  display: grid;
+  gap: 8px;
+}
+
+.room-picker-row-upper {
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+}
+
+.room-picker-row-lower {
+  grid-template-columns: repeat(5, minmax(72px, 1fr));
 }
 
 .room-picker button {
@@ -2664,10 +2676,6 @@ input[type="file"]::file-selector-button {
     grid-template-columns: repeat(5, minmax(48px, 1fr));
   }
 
-  .room-picker {
-    grid-template-columns: repeat(3, minmax(72px, 1fr));
-  }
-
   .reservation-date-picker {
     grid-template-columns: repeat(4, minmax(72px, 1fr));
   }
@@ -2806,8 +2814,17 @@ input[type="file"]::file-selector-button {
     grid-template-columns: repeat(5, minmax(44px, 1fr));
   }
 
-  .room-picker {
-    grid-template-columns: repeat(2, minmax(100px, 1fr));
+  .room-picker-row {
+    gap: 6px;
+  }
+
+  .room-picker-row-lower {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .room-picker button {
+    padding-inline: 4px;
+    font-size: 13px;
   }
 
   .participant-card {

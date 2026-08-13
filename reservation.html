@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 온라인 예약 신청">
   <title>호실 예약 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260811-graduate-room-selection">
+  <link rel="stylesheet" href="./styles/style.css?v=20260813-room-catalog">
 </head>
 <body>
   <header class="app-header">
@@ -100,12 +100,17 @@
                 role="radiogroup"
                 aria-label="사용할 호실 선택"
               >
-                <button type="button" data-room-number="705" role="radio">705호</button>
-                <button type="button" data-room-number="706" role="radio">706호</button>
-                <button type="button" data-room-number="707" role="radio">707호</button>
-                <button type="button" data-room-number="708" role="radio">708호</button>
-                <button type="button" data-room-number="709" role="radio">709호</button>
-                <button type="button" data-room-number="710" role="radio">710호</button>
+                <div class="room-picker-row room-picker-row-upper">
+                  <button type="button" data-room-number="602" role="radio">602호</button>
+                  <button type="button" data-room-number="603" role="radio">603호</button>
+                </div>
+                <div class="room-picker-row room-picker-row-lower">
+                  <button type="button" data-room-number="702" role="radio">702호</button>
+                  <button type="button" data-room-number="703" role="radio">703호</button>
+                  <button type="button" data-room-number="704" role="radio">704호</button>
+                  <button type="button" data-room-number="705" role="radio">705호</button>
+                  <button type="button" data-room-number="708" role="radio">708호</button>
+                </div>
               </div>
               <input id="room-number" type="hidden" value="">
             </fieldset>
@@ -214,6 +219,6 @@
     </div>
   </main>
 
-  <script type="module" src="./scripts/reservation.js?v=20260811-graduate-room-selection"></script>
+  <script type="module" src="./scripts/reservation.js?v=20260813-room-catalog"></script>
 </body>
 </html>
