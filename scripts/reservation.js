@@ -27,8 +27,11 @@ const rulesAgreedInput = document.getElementById("rules-agreed");
 const reservationMessage = document.getElementById("reservation-message");
 
 const reservationCalendar = document.getElementById("reservation-calendar");
-const calendarToggle = document.getElementById("calendar-toggle");
-const calendarValue = document.getElementById("calendar-value");
+const calendarStartToggle = document.getElementById("calendar-start-toggle");
+const calendarEndToggle = document.getElementById("calendar-end-toggle");
+const calendarToggles = [calendarStartToggle, calendarEndToggle];
+const calendarStartValue = document.getElementById("calendar-start-value");
+const calendarEndValue = document.getElementById("calendar-end-value");
 const calendarPopover = document.getElementById("calendar-popover");
 const calendarMonth = document.getElementById("calendar-month");
 const calendarDays = document.getElementById("calendar-days");
@@ -56,6 +59,7 @@ let calendarMaximumDate = null;
 let calendarViewDate = null;
 let selectedStartDate = "";
 let selectedEndDate = "";
+let activeDateField = "start";
 let selectedRoomNumber = "";
 let bookedSlotsRequestId = 0;
 let professorNameComposing = false;
@@ -101,14 +105,20 @@ roomButtons.forEach((button) => {
   });
 });
 
-calendarToggle.addEventListener("click", () => {
-  const opening = calendarPopover.hidden;
-  calendarPopover.hidden = !opening;
-  calendarToggle.setAttribute("aria-expanded", String(opening));
+calendarStartToggle.addEventListener("click", () => {
+  toggleReservationCalendar("start");
+});
 
-  if (opening) {
-    renderReservationCalendar();
+calendarEndToggle.addEventListener("click", () => {
+  if (!selectedStartDate) {
+    dateRangeMessage.textContent = "시작 날짜를 먼저 선택해 주세요.";
+    dateRangeMessage.classList.remove("success");
+    dateRangeMessage.classList.add("error");
+    calendarStartToggle.focus();
+    return;
   }
+
+  toggleReservationCalendar("end");
 });
 
 calendarPrev.addEventListener("click", () => {
@@ -127,8 +137,11 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !calendarPopover.hidden) {
+    const activeToggle = activeDateField === "end"
+      ? calendarEndToggle
+      : calendarStartToggle;
     closeReservationCalendar();
-    calendarToggle.focus();
+    activeToggle.focus();
   }
 });
 
@@ -339,9 +352,55 @@ function setDateLimits() {
   resetDateRangeSelection();
 }
 
+function setCalendarViewFromDate(dateValue) {
+  if (!dateValue) {
+    return;
+  }
+
+  const date = parseDateValue(dateValue);
+  calendarViewDate = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 12)
+  );
+}
+
+function toggleReservationCalendar(field) {
+  const isSameFieldOpen =
+    !calendarPopover.hidden && activeDateField === field;
+
+  if (isSameFieldOpen) {
+    closeReservationCalendar();
+    return;
+  }
+
+  activeDateField = field;
+  calendarPopover.hidden = false;
+  calendarPopover.classList.toggle("align-end", field === "end");
+  calendarPopover.setAttribute(
+    "aria-label",
+    field === "end" ? "종료 날짜 선택 달력" : "시작 날짜 선택 달력"
+  );
+
+  calendarToggles.forEach((toggle) => {
+    const expanded =
+      (field === "start" && toggle === calendarStartToggle) ||
+      (field === "end" && toggle === calendarEndToggle);
+    toggle.setAttribute("aria-expanded", String(expanded));
+  });
+
+  setCalendarViewFromDate(
+    field === "end"
+      ? selectedEndDate || selectedStartDate
+      : selectedStartDate
+  );
+  renderReservationCalendar();
+}
+
 function closeReservationCalendar() {
   calendarPopover.hidden = true;
-  calendarToggle.setAttribute("aria-expanded", "false");
+  calendarPopover.classList.remove("align-end");
+  calendarToggles.forEach((toggle) => {
+    toggle.setAttribute("aria-expanded", "false");
+  });
 }
 
 function moveCalendarMonth(direction) {
@@ -454,19 +513,21 @@ function selectReservationDate(dateValue) {
 
   dateRangeMessage.classList.remove("error", "success");
 
-  if (!selectedStartDate || selectedEndDate) {
+  if (activeDateField === "start") {
     selectedStartDate = dateValue;
     selectedEndDate = "";
     syncDateRangeSelection();
     renderReservationCalendar();
+    closeReservationCalendar();
+    calendarStartToggle.focus();
     return;
   }
 
-  if (dateValue < selectedStartDate) {
-    selectedStartDate = dateValue;
-    selectedEndDate = "";
-    syncDateRangeSelection();
-    renderReservationCalendar();
+  if (!selectedStartDate) {
+    dateRangeMessage.textContent = "시작 날짜를 먼저 선택해 주세요.";
+    dateRangeMessage.classList.add("error");
+    closeReservationCalendar();
+    calendarStartToggle.focus();
     return;
   }
 
@@ -482,19 +543,34 @@ function selectReservationDate(dateValue) {
   syncDateRangeSelection();
   renderReservationCalendar();
   closeReservationCalendar();
-  calendarToggle.focus();
+  calendarEndToggle.focus();
 }
 
 function resetDateRangeSelection() {
   selectedStartDate = "";
   selectedEndDate = "";
+  activeDateField = "start";
+  closeReservationCalendar();
   syncDateRangeSelection();
 }
 
 function syncDateRangeSelection() {
   reservationStartDateInput.value = selectedStartDate;
   reservationEndDateInput.value = selectedEndDate;
-  calendarToggle.classList.toggle("complete", Boolean(selectedEndDate));
+  calendarStartValue.textContent = selectedStartDate
+    ? formatKoreanDate(selectedStartDate)
+    : "시작날짜";
+  calendarEndValue.textContent = selectedEndDate
+    ? formatKoreanDate(selectedEndDate)
+    : "종료날짜";
+  calendarStartToggle.classList.toggle(
+    "has-value",
+    Boolean(selectedStartDate)
+  );
+  calendarEndToggle.classList.toggle(
+    "has-value",
+    Boolean(selectedEndDate)
+  );
   selectedDateSummary.parentElement.classList.toggle(
     "complete",
     Boolean(selectedEndDate)
@@ -502,7 +578,6 @@ function syncDateRangeSelection() {
   dateRangeMessage.classList.remove("error", "success");
 
   if (!selectedStartDate) {
-    calendarValue.textContent = "시작일 ~ 종료일";
     selectedDateSummary.textContent = "선택 전";
 
     if (!selectedRoomNumber) {
@@ -521,10 +596,9 @@ function syncDateRangeSelection() {
 
   if (!selectedEndDate) {
     const startLabel = formatKoreanDate(selectedStartDate);
-    calendarValue.textContent = `${startLabel} ~ 종료일`;
     selectedDateSummary.textContent = `${startLabel} ~ 종료 날짜 선택 필요`;
     dateRangeMessage.textContent =
-      "종료 날짜를 선택해 주세요. 하루 예약은 같은 날짜를 한 번 더 누르세요.";
+      "오른쪽 종료날짜를 선택해 주세요. 하루 예약은 시작날짜와 같은 날짜를 선택하세요.";
     return;
   }
 
@@ -535,7 +609,6 @@ function syncDateRangeSelection() {
     ? startLabel
     : `${startLabel} ~ ${endLabel}`;
 
-  calendarValue.textContent = rangeLabel;
   selectedDateSummary.textContent = `${rangeLabel} (${dates.length}일)`;
   dateRangeMessage.textContent = "예약 날짜가 선택되었습니다.";
   dateRangeMessage.classList.add("success");
@@ -779,10 +852,17 @@ function collectReservationValues() {
     );
   }
 
-  if (!values.startDate || !values.endDate) {
+  if (!values.startDate) {
     throw createReservationValidationError(
-      "시작 날짜와 종료 날짜를 모두 선택해 주세요.",
-      calendarToggle
+      "시작 날짜를 선택해 주세요.",
+      calendarStartToggle
+    );
+  }
+
+  if (!values.endDate) {
+    throw createReservationValidationError(
+      "종료 날짜를 선택해 주세요.",
+      calendarEndToggle
     );
   }
 
@@ -794,7 +874,7 @@ function collectReservationValues() {
   if (!rangeValidation.valid) {
     throw createReservationValidationError(
       rangeValidation.message,
-      calendarToggle
+      calendarEndToggle
     );
   }
 
@@ -825,7 +905,7 @@ reservationForm.addEventListener("submit", async (event) => {
     values = collectReservationValues();
   } catch (error) {
     showReservationFieldError(
-      error.input ?? calendarToggle,
+      error.input ?? calendarStartToggle,
       error.message
     );
     return;
@@ -833,7 +913,7 @@ reservationForm.addEventListener("submit", async (event) => {
 
   if (!currentTeamId) {
     showReservationFieldError(
-      calendarToggle,
+      calendarStartToggle,
       "예약 정보를 준비하지 못했습니다. 페이지를 새로고침해 주세요."
     );
     return;

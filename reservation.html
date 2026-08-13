@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 온라인 예약 신청">
   <title>호실 예약 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260813-room-equal-width">
+  <link rel="stylesheet" href="./styles/style.css?v=20260813-split-date-fields">
 </head>
 <body>
   <header class="app-header">
@@ -135,18 +135,37 @@
                 </div>
               </div>
               <div id="reservation-calendar" class="reservation-calendar">
-                <button
-                  id="calendar-toggle"
-                  class="calendar-input"
-                  type="button"
-                  aria-haspopup="dialog"
-                  aria-expanded="false"
-                >
-                  <span id="calendar-value">시작일 ~ 종료일</span>
-                  <svg class="calendar-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"></path>
-                  </svg>
-                </button>
+                <div class="calendar-range-inputs">
+                  <button
+                    id="calendar-start-toggle"
+                    class="calendar-input"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-label="시작날짜 선택"
+                  >
+                    <span id="calendar-start-value">시작날짜</span>
+                    <svg class="calendar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"></path>
+                    </svg>
+                  </button>
+
+                  <span class="calendar-range-separator" aria-hidden="true">~</span>
+
+                  <button
+                    id="calendar-end-toggle"
+                    class="calendar-input"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-label="종료날짜 선택"
+                  >
+                    <span id="calendar-end-value">종료날짜</span>
+                    <svg class="calendar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"></path>
+                    </svg>
+                  </button>
+                </div>
 
                 <div
                   id="calendar-popover"
@@ -170,7 +189,7 @@
               <input id="reservation-start-date" type="hidden" value="">
               <input id="reservation-end-date" type="hidden" value="">
               <span class="field-help">
-                호실을 먼저 선택하고 시작일과 종료일을 차례로 선택해 주세요. 하루만 예약하려면 같은 날짜를 한 번 더 누르세요. 주말·해당 호실이 예약된 날짜는 선택할 수 없으며 최대 연속 평일 5일까지 가능합니다.
+                호실을 먼저 선택한 뒤 왼쪽에서 시작날짜, 오른쪽에서 종료날짜를 각각 선택해 주세요. 하루만 예약하려면 두 곳에서 같은 날짜를 선택하세요. 주말·해당 호실이 예약된 날짜는 선택할 수 없으며 최대 연속 평일 5일까지 가능합니다.
               </span>
               <div class="final-time-summary" aria-live="polite">
                 <span>최종 선택 날짜</span>
@@ -219,6 +238,6 @@
     </div>
   </main>
 
-  <script type="module" src="./scripts/reservation.js?v=20260813-room-catalog"></script>
+  <script type="module" src="./scripts/reservation.js?v=20260813-split-date-fields"></script>
 </body>
 </html>

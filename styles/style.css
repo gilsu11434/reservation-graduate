@@ -604,6 +604,20 @@ input[type="file"]::file-selector-button {
   position: relative;
 }
 
+.calendar-range-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-range-separator {
+  color: var(--text);
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+}
+
 .reservation-date-heading {
   display: flex;
   align-items: center;
@@ -662,6 +676,13 @@ input[type="file"]::file-selector-button {
   font-size: 15px;
   font-weight: 400;
   text-align: left;
+}
+
+.calendar-input span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calendar-input:hover,
@@ -753,6 +774,11 @@ input[type="file"]::file-selector-button {
   border-radius: 12px;
   background: #ffffff;
   box-shadow: var(--shadow-md);
+}
+
+.calendar-popover.align-end {
+  right: 0;
+  left: auto;
 }
 
 .calendar-popover[hidden] {
@@ -2814,6 +2840,16 @@ input[type="file"]::file-selector-button {
 
   .room-picker button {
     padding-inline: 4px;
+    font-size: 13px;
+  }
+
+  .calendar-range-inputs {
+    grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .calendar-input {
+    padding-inline: 8px;
     font-size: 13px;
   }
 
