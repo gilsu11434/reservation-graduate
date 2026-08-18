@@ -6,6 +6,8 @@ import {
 
 let currentUser = null;
 let reservations = [];
+let dailyCheckouts = [];
+let checkoutFeatureError = "";
 
 document
   .getElementById("logout-button")
@@ -63,6 +65,30 @@ async function loadReservations() {
       hasCompleteParticipantInfo
     );
   });
+
+  dailyCheckouts = [];
+  checkoutFeatureError = "";
+
+  const reservationIds = reservations.map(
+    (reservation) => reservation.id
+  );
+
+  if (reservationIds.length > 0) {
+    const {
+      data: checkoutRows,
+      error: checkoutError
+    } = await supabase
+      .from("reservation_daily_checkouts")
+      .select("*")
+      .in("reservation_id", reservationIds);
+
+    if (checkoutError) {
+      checkoutFeatureError = checkoutError.message;
+    } else {
+      dailyCheckouts = checkoutRows ?? [];
+    }
+  }
+
   renderReservations();
 }
 
@@ -102,6 +128,225 @@ function formatReservationDateRange(reservation) {
   return startDate === endDate
     ? startLabel
     : `${startLabel} ~ ${endLabel}`;
+}
+
+function getKoreaTodayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+function dateKeyToUtcDate(dateKey) {
+  const [year, month, day] = String(dateKey)
+    .split("-")
+    .map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function utcDateToDateKey(date) {
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function formatCheckoutDate(dateKey) {
+  return dateKeyToUtcDate(dateKey).toLocaleDateString("ko-KR", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short"
+  });
+}
+
+function getReservationDateKeys(reservation) {
+  const startKey = formatFileDate(reservation.start_at);
+  const endKey = formatFileDate(reservation.end_at);
+  const startDate = dateKeyToUtcDate(startKey);
+  const endDate = dateKeyToUtcDate(endKey);
+  const dateKeys = [];
+
+  for (
+    let cursor = new Date(startDate);
+    cursor <= endDate && dateKeys.length < 31;
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  ) {
+    const dayOfWeek = cursor.getUTCDay();
+
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      dateKeys.push(utcDateToDateKey(cursor));
+    }
+  }
+
+  return dateKeys;
+}
+
+function getDailyCheckout(reservationId, checkoutDate) {
+  return dailyCheckouts.find(
+    (checkout) =>
+      String(checkout.reservation_id) === String(reservationId) &&
+      checkout.checkout_date === checkoutDate
+  ) ?? null;
+}
+
+function getCheckoutAvailability(reservation, checkoutDate, checkout) {
+  if (checkout) {
+    return {
+      canCheckout: false,
+      cardClass: "is-completed",
+      statusClass: "status-ready",
+      statusLabel: "퇴실 완료",
+      buttonLabel: "퇴실 완료"
+    };
+  }
+
+  if (reservation.status === "cancelled") {
+    return {
+      canCheckout: false,
+      cardClass: "is-disabled",
+      statusClass: "status-cancelled",
+      statusLabel: "취소된 예약",
+      buttonLabel: "퇴실 불가"
+    };
+  }
+
+  if ((reservation.approval_status ?? "approved") !== "approved") {
+    return {
+      canCheckout: false,
+      cardClass: "is-disabled",
+      statusClass: "status-documents_pending",
+      statusLabel: "승인 전",
+      buttonLabel: "예약 승인 후 가능"
+    };
+  }
+
+  if (checkoutFeatureError) {
+    return {
+      canCheckout: false,
+      cardClass: "is-disabled",
+      statusClass: "status-documents_pending",
+      statusLabel: "설정 필요",
+      buttonLabel: "퇴실 기능 준비 중"
+    };
+  }
+
+  if (checkoutDate !== getKoreaTodayKey()) {
+    const isPastDate = checkoutDate < getKoreaTodayKey();
+
+    return {
+      canCheckout: false,
+      cardClass: "is-disabled",
+      statusClass: "status-documents_pending",
+      statusLabel: isPastDate ? "이용일 종료" : "이용 예정",
+      buttonLabel: "예약 당일에만 가능"
+    };
+  }
+
+  return {
+    canCheckout: true,
+    cardClass: "is-today",
+    statusClass: "status-ready",
+    statusLabel: "오늘 이용일",
+    buttonLabel: "퇴실하기"
+  };
+}
+
+function renderDailyCheckoutSection(reservation) {
+  const dateKeys = getReservationDateKeys(reservation);
+
+  if (dateKeys.length === 0) {
+    return "";
+  }
+
+  return `
+    <section class="daily-checkout-section" aria-label="날짜별 퇴실 확인">
+      <div class="daily-checkout-heading">
+        <div>
+          <p class="eyebrow">Daily checkout</p>
+          <h3>날짜별 퇴실 확인</h3>
+        </div>
+        <p>각 예약 날짜 당일에 안전수칙을 모두 확인한 후 퇴실해 주세요.</p>
+      </div>
+
+      ${checkoutFeatureError
+        ? `
+          <div class="daily-checkout-setup-note" role="status">
+            날짜별 퇴실 기능을 사용하려면 추가 SQL 설정이 필요합니다.
+          </div>
+        `
+        : ""}
+
+      <div class="daily-checkout-grid">
+        ${dateKeys.map((checkoutDate) => {
+          const checkout = getDailyCheckout(
+            reservation.id,
+            checkoutDate
+          );
+          const availability = getCheckoutAvailability(
+            reservation,
+            checkoutDate,
+            checkout
+          );
+          const completed = Boolean(checkout);
+          const disabledAttribute = availability.canCheckout
+            ? ""
+            : "disabled";
+
+          return `
+            <form
+              class="daily-checkout-card ${availability.cardClass}"
+              data-reservation-id="${escapeHtml(reservation.id)}"
+              data-checkout-date="${escapeHtml(checkoutDate)}"
+              data-active="${availability.canCheckout}"
+            >
+              <div class="daily-checkout-card-heading">
+                <strong>${escapeHtml(formatCheckoutDate(checkoutDate))}</strong>
+                <span class="status-badge ${availability.statusClass}">
+                  ${escapeHtml(availability.statusLabel)}
+                </span>
+              </div>
+
+              <fieldset ${disabledAttribute}>
+                <legend class="sr-only">${escapeHtml(formatCheckoutDate(checkoutDate))} 안전수칙</legend>
+                <div class="daily-checkout-rules">
+                  <label class="daily-checkout-rule">
+                    <input type="checkbox" name="lightsOff" data-checkout-rule ${completed ? "checked" : ""}>
+                    <span>조명 소등 확인</span>
+                  </label>
+                  <label class="daily-checkout-rule">
+                    <input type="checkbox" name="equipmentOff" data-checkout-rule ${completed ? "checked" : ""}>
+                    <span>컴퓨터·인두기 등 장비 OFF</span>
+                  </label>
+                  <label class="daily-checkout-rule">
+                    <input type="checkbox" name="doorsLocked" data-checkout-rule ${completed ? "checked" : ""}>
+                    <span>창문·출입문 문단속 확인</span>
+                  </label>
+                  <label class="daily-checkout-rule">
+                    <input type="checkbox" name="areaClean" data-checkout-rule ${completed ? "checked" : ""}>
+                    <span>자리와 주변 정리 확인</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <button
+                type="submit"
+                class="daily-checkout-button"
+                disabled
+              >
+                ${escapeHtml(availability.buttonLabel)}
+              </button>
+            </form>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function escapeHtml(value) {
@@ -396,6 +641,8 @@ function renderReservations() {
               : ""
           }
 
+          ${renderDailyCheckoutSection(reservation)}
+
           <div class="workflow-grid">
             <section class="workflow-panel">
               <h3>${isDateRange ? "예약자 수료증" : "참여자 수료증"}</h3>
@@ -565,6 +812,73 @@ function getExtension(fileName) {
 }
 
 function attachEventListeners() {
+  document
+    .querySelectorAll(".daily-checkout-card")
+    .forEach((form) => {
+      const checkoutButton = form.querySelector(
+        ".daily-checkout-button"
+      );
+      const ruleInputs = Array.from(
+        form.querySelectorAll("[data-checkout-rule]")
+      );
+      const isActive = form.dataset.active === "true";
+
+      const updateCheckoutButton = () => {
+        if (!isActive) {
+          return;
+        }
+
+        checkoutButton.disabled = !ruleInputs.every(
+          (input) => input.checked
+        );
+      };
+
+      ruleInputs.forEach((input) => {
+        input.addEventListener("change", updateCheckoutButton);
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (!isActive || !ruleInputs.every((input) => input.checked)) {
+          alert("안전수칙을 모두 확인해 주세요.");
+          return;
+        }
+
+        if (!confirm("안전수칙을 모두 확인했습니다. 퇴실 처리하시겠습니까?")) {
+          return;
+        }
+
+        const originalLabel = checkoutButton.textContent;
+        checkoutButton.disabled = true;
+        checkoutButton.textContent = "퇴실 처리 중...";
+
+        const { error } = await supabase.rpc(
+          "complete_my_daily_checkout",
+          {
+            p_reservation_id: form.dataset.reservationId,
+            p_checkout_date: form.dataset.checkoutDate,
+            p_lights_off: form.lightsOff.checked,
+            p_equipment_off: form.equipmentOff.checked,
+            p_doors_locked: form.doorsLocked.checked,
+            p_area_clean: form.areaClean.checked
+          }
+        );
+
+        if (error) {
+          checkoutButton.textContent = originalLabel;
+          updateCheckoutButton();
+          alert(error.message);
+          return;
+        }
+
+        alert(`${formatCheckoutDate(form.dataset.checkoutDate)} 퇴실 처리를 완료했습니다.`);
+        await loadReservations();
+      });
+
+      updateCheckoutButton();
+    });
+
   document
     .querySelectorAll(".cancel-button")
     .forEach((button) => {

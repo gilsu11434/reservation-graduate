@@ -7,7 +7,7 @@
 - `index.html`: 이용 안내
 - `login.html`: 이메일 로그인 및 회원가입
 - `reservation.html`: 지도교수님 연구실, 602·603·702·703·704·705·708호 선택과 최대 5일의 평일 기간 예약
-- `my-reservation.html`: 내 예약 기간, 수료증, 이용확인서
+- `my-reservation.html`: 내 예약 기간, 날짜별 안전수칙·당일 퇴실, 수료증, 이용확인서
 - `admin.html`: 사용자와 전체 예약 관리
 - `suggestions.html`: 제목·가린 작성자 공개, 작성자 삭제 및 비공개 사진 첨부
 - `styles/style.css`: 전체 공통 디자인
@@ -16,6 +16,7 @@
 - `supabase-reservation-approval-workflow.sql`: 예약·이용확인서 관리자 승인 흐름
 - `supabase-certificate-review.sql`: 수료증 경로 저장과 관리자 승인·반려
 - `supabase-graduate-date-range.sql`: 졸업생용 호실별 평일 기간 예약 저장 함수와 검증
+- `supabase-daily-checkout.sql`: 예약 날짜별 안전수칙 확인과 당일 퇴실 저장 기능
 
 ## 최초 설정
 
@@ -36,8 +37,10 @@
    13. `supabase-reservation-approval-workflow.sql`
    14. `supabase-professor-name-validation.sql`
    15. `supabase-graduate-date-range.sql`
+   16. `supabase-daily-checkout.sql`
 3. 신규 프로젝트에서는 `supabase-fix-usage-reports-created-at.sql`과 `supabase-manual-usage-report-approval.sql`을 실행하지 않습니다.
    이전 버전에서 `supabase-graduate-date-range.sql`을 이미 실행했다면, 최신 호실 목록 적용을 위해 최신 파일을 다시 한 번 실행합니다.
+   기존 프로젝트에는 `supabase-daily-checkout.sql`만 추가로 한 번 실행하면 됩니다.
 4. Supabase의 `Authentication > Sign In / Providers > Email`에서 `Confirm email`을 켭니다.
 5. `Authentication > URL Configuration`의 `Site URL`을 `https://gilsu11434.github.io/reservation-graduate/`로 설정하고, `Redirect URLs`에 `https://gilsu11434.github.io/reservation-graduate/login.html`을 추가합니다.
 6. `scripts/config.js`에는 reservation-graduate 전용 Supabase URL과 Publishable key가 이미 고정되어 있습니다. reservation-student 값으로 바꾸거나 Secret key·`service_role` 키를 브라우저 코드에 넣지 않습니다.
