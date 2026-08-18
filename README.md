@@ -8,7 +8,7 @@
 - `login.html`: 이메일 로그인 및 회원가입
 - `reservation.html`: 지도교수님 연구실, 602·603·702·703·704·705·708호 선택과 최대 5일의 평일 기간 예약
 - `my-reservation.html`: 내 예약 기간, 날짜별 안전수칙·당일 퇴실, 수료증, 이용확인서
-- `admin.html`: 사용자와 전체 예약 관리
+- `admin.html`: 사용자와 전체 예약 관리, 관리자 예약 날짜 변경
 - `suggestions.html`: 제목·가린 작성자 공개, 작성자 삭제 및 비공개 사진 첨부
 - `styles/style.css`: 전체 공통 디자인
 - `scripts`: Supabase 연결과 페이지 기능
@@ -17,6 +17,7 @@
 - `supabase-certificate-review.sql`: 수료증 경로 저장과 관리자 승인·반려
 - `supabase-graduate-date-range.sql`: 졸업생용 호실별 평일 기간 예약 저장 함수와 검증
 - `supabase-daily-checkout.sql`: 예약 날짜별 안전수칙 확인과 당일 퇴실 저장 기능
+- `supabase-admin-reservation-date-edit.sql`: 관리자 전용 예약 시작일·종료일 변경 함수
 
 ## 최초 설정
 
@@ -38,9 +39,11 @@
    14. `supabase-professor-name-validation.sql`
    15. `supabase-graduate-date-range.sql`
    16. `supabase-daily-checkout.sql`
+   17. `supabase-admin-reservation-date-edit.sql`
 3. 신규 프로젝트에서는 `supabase-fix-usage-reports-created-at.sql`과 `supabase-manual-usage-report-approval.sql`을 실행하지 않습니다.
    이전 버전에서 `supabase-graduate-date-range.sql`을 이미 실행했다면, 최신 호실 목록 적용을 위해 최신 파일을 다시 한 번 실행합니다.
-   기존 프로젝트에는 `supabase-daily-checkout.sql`만 추가로 한 번 실행하면 됩니다.
+   기존 프로젝트에는 아직 실행하지 않은 최신 기능 SQL만 한 번씩 실행하면 됩니다.
+   관리자 날짜 변경 기능을 추가할 때는 `supabase-admin-reservation-date-edit.sql`을 한 번 실행합니다.
 4. Supabase의 `Authentication > Sign In / Providers > Email`에서 `Confirm email`을 켭니다.
 5. `Authentication > URL Configuration`의 `Site URL`을 `https://gilsu11434.github.io/reservation-graduate/`로 설정하고, `Redirect URLs`에 `https://gilsu11434.github.io/reservation-graduate/login.html`을 추가합니다.
 6. `scripts/config.js`에는 reservation-graduate 전용 Supabase URL과 Publishable key가 이미 고정되어 있습니다. reservation-student 값으로 바꾸거나 Secret key·`service_role` 키를 브라우저 코드에 넣지 않습니다.
@@ -56,7 +59,7 @@
 ## 승인 진행 방식
 
 1. 사용자가 예약을 신청하면 선택한 호실의 날짜 기간은 즉시 다른 사용자에게 예약 불가로 표시되고, 예약 상태는 `승인 대기`가 됩니다. 다른 호실은 같은 날짜에도 별도로 예약할 수 있습니다.
-2. 관리자가 달력의 예약 건을 눌러 예약을 승인하거나 거절합니다. 거절한 예약 날짜는 다시 예약할 수 있습니다.
+2. 관리자가 달력의 예약 건을 눌러 예약을 승인하거나 거절하며, 상세화면에서 시작 날짜와 종료 날짜를 변경할 수 있습니다. 같은 호실의 다른 예약과 겹치는 날짜는 저장되지 않습니다. 거절한 예약 날짜는 다시 예약할 수 있습니다.
 3. 관리자는 예약 상세화면에서 파일 제출 여부와 관계없이 참여자별 수료증을 승인·반려·승인 취소할 수 있습니다.
 4. 사용자는 승인된 예약의 이용 종료 후 이용확인서를 제출합니다.
 5. 관리자는 이용확인서 파일이 없어도 승인할 수 있으며, 승인하면 사용자는 다음 예약을 신청할 수 있습니다. 승인 취소 시 다음 예약 제한이 다시 적용됩니다.

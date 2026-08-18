@@ -181,6 +181,17 @@ reservationDetailContent.addEventListener("click", async (event) => {
   }
 });
 
+reservationDetailContent.addEventListener("submit", async (event) => {
+  const dateForm = event.target.closest("[data-reservation-date-form]");
+
+  if (!dateForm) {
+    return;
+  }
+
+  event.preventDefault();
+  await updateReservationDates(dateForm);
+});
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -811,6 +822,70 @@ async function reviewUsageReport(button) {
   openReservationDetails(reservationId);
 }
 
+async function updateReservationDates(form) {
+  const reservationId = form.dataset.reservationId;
+  const startDateInput = form.elements.start_date;
+  const endDateInput = form.elements.end_date;
+  const submitButton = form.querySelector('[type="submit"]');
+  const formMessage = form.querySelector("[data-reservation-date-message]");
+  const startDate = startDateInput?.value ?? "";
+  const endDate = endDateInput?.value ?? "";
+
+  formMessage.textContent = "";
+  formMessage.classList.remove("error", "success");
+
+  if (!startDate || !endDate) {
+    formMessage.textContent = "시작 날짜와 종료 날짜를 모두 선택해 주세요.";
+    formMessage.classList.add("error");
+    return;
+  }
+
+  if (endDate < startDate) {
+    formMessage.textContent = "종료 날짜는 시작 날짜 이후여야 합니다.";
+    formMessage.classList.add("error");
+    return;
+  }
+
+  if (!confirm(`${startDate} ~ ${endDate}로 예약 날짜를 변경하시겠습니까?`)) {
+    return;
+  }
+
+  submitButton.disabled = true;
+  startDateInput.disabled = true;
+  endDateInput.disabled = true;
+  formMessage.textContent = "예약 날짜를 변경하는 중입니다.";
+
+  const { error } = await supabase.rpc(
+    "admin_update_reservation_dates",
+    {
+      p_reservation_id: reservationId,
+      p_start_date: startDate,
+      p_end_date: endDate
+    }
+  );
+
+  if (error) {
+    formMessage.textContent = `날짜 변경 오류: ${error.message}`;
+    formMessage.classList.add("error");
+    submitButton.disabled = false;
+    startDateInput.disabled = false;
+    endDateInput.disabled = false;
+    return;
+  }
+
+  await loadReservations();
+  openReservationDetails(reservationId);
+
+  const refreshedMessage = reservationDetailContent.querySelector(
+    "[data-reservation-date-message]"
+  );
+
+  if (refreshedMessage) {
+    refreshedMessage.textContent = "예약 날짜가 변경되었습니다.";
+    refreshedMessage.classList.add("success");
+  }
+}
+
 function renderParticipants(reservation) {
   const participants = normalizeRelatedRows(reservation.reservation_members);
 
@@ -920,6 +995,9 @@ function openReservationDetails(reservationId) {
     !isDateRange &&
     new Date(effectiveEnd).getTime() >
     new Date(reservation.end_at).getTime();
+  const canEditDates = !["cancelled", "completed"].includes(
+    reservation.status
+  );
   const status = escapeHtml(reservation.status || "unknown");
   const approvalStatus = getApprovalStatusInfo(
     reservation.approval_status ?? "approved"
@@ -978,6 +1056,60 @@ function openReservationDetails(reservationId) {
           ${escapeHtml(getStatusLabel(reservation.status))}
         </span>
       </div>
+    </section>
+
+    <section class="admin-detail-section admin-date-edit-section">
+      <div class="admin-detail-section-heading">
+        <h3>예약 날짜 변경</h3>
+        <span>관리자 전용</span>
+      </div>
+      ${canEditDates
+        ? `
+          <form
+            class="admin-date-edit-form"
+            data-reservation-date-form
+            data-reservation-id="${escapeHtml(reservation.id)}"
+          >
+            <div class="admin-date-edit-fields">
+              <label>
+                <span>시작 날짜</span>
+                <input
+                  type="date"
+                  name="start_date"
+                  value="${escapeHtml(getReservationDateKey(reservation))}"
+                  required
+                >
+              </label>
+              <span class="admin-date-edit-separator" aria-hidden="true">~</span>
+              <label>
+                <span>종료 날짜</span>
+                <input
+                  type="date"
+                  name="end_date"
+                  value="${escapeHtml(getReservationEndDateKey(reservation))}"
+                  required
+                >
+              </label>
+              <button type="submit">날짜 변경 저장</button>
+            </div>
+            <p class="admin-date-edit-help">
+              ${isDateRange
+                ? "평일 기준 최대 5일이며, 같은 호실의 기존 예약과 겹칠 수 없습니다."
+                : "기존 시간 예약은 시작 날짜와 종료 날짜를 같은 날로 선택해 주세요."}
+            </p>
+            <p
+              class="form-message admin-date-edit-message"
+              data-reservation-date-message
+              role="status"
+              aria-live="polite"
+            ></p>
+          </form>
+        `
+        : `
+          <p class="admin-detail-empty">
+            완료되거나 취소된 예약은 날짜를 변경할 수 없습니다.
+          </p>
+        `}
     </section>
 
     <section class="admin-detail-section admin-upload-overview">
