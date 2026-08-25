@@ -818,7 +818,7 @@ function openReservationDetails(reservationId) {
             </div>
             <p class="admin-date-edit-help">
               ${isDateRange
-                ? "평일 기준 최대 5일이며, 같은 호실의 기존 예약과 겹칠 수 없습니다."
+                ? "평일 기준 최대 5일이며, 다른 예약과 날짜가 겹쳐도 저장할 수 있습니다."
                 : "기존 시간 예약은 시작 날짜와 종료 날짜를 같은 날로 선택해 주세요."}
             </p>
             <p

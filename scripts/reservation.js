@@ -51,9 +51,6 @@ const dateRangeMessage = document.getElementById("date-range-message");
 let currentUser = null;
 let currentTeamId = null;
 let currentProfile = null;
-let bookedSlots = [];
-let bookedSlotsLoaded = false;
-let bookedSlotsLoadFailed = false;
 let calendarMinimumDate = null;
 let calendarMaximumDate = null;
 let calendarViewDate = null;
@@ -61,7 +58,6 @@ let selectedStartDate = "";
 let selectedEndDate = "";
 let activeDateField = "start";
 let selectedRoomNumber = "";
-let bookedSlotsRequestId = 0;
 let professorNameComposing = false;
 let activeReservationErrorInput = null;
 
@@ -101,7 +97,7 @@ roomButtons.forEach((button) => {
   button.setAttribute("aria-checked", "false");
 
   button.addEventListener("click", () => {
-    void selectRoomNumber(button.dataset.roomNumber);
+    selectRoomNumber(button.dataset.roomNumber);
   });
 });
 
@@ -170,16 +166,12 @@ function syncRoomSelection() {
 
 function resetRoomSelection() {
   selectedRoomNumber = "";
-  bookedSlots = [];
-  bookedSlotsLoaded = false;
-  bookedSlotsLoadFailed = false;
-  bookedSlotsRequestId += 1;
   syncRoomSelection();
   resetDateRangeSelection();
   renderReservationCalendar();
 }
 
-async function selectRoomNumber(roomNumber) {
+function selectRoomNumber(roomNumber) {
   if (
     !ALLOWED_ROOM_NUMBERS.has(roomNumber) ||
     roomNumber === selectedRoomNumber
@@ -203,7 +195,7 @@ async function selectRoomNumber(roomNumber) {
   }
 
   resetDateRangeSelection();
-  await loadBookedSlots(roomNumber);
+  renderReservationCalendar();
 }
 
 function sanitizeProfessorName(value) {
@@ -428,22 +420,6 @@ function moveCalendarMonth(direction) {
   renderReservationCalendar();
 }
 
-function isDateBooked(dateValue) {
-  const dayStart = new Date(`${dateValue}T00:00:00+09:00`).getTime();
-  const dayEnd = new Date(
-    `${addDays(dateValue, 1)}T00:00:00+09:00`
-  ).getTime();
-
-  return bookedSlots.some((slot) => {
-    const bookedStart = new Date(slot.start_at).getTime();
-    const bookedEnd = new Date(
-      slot.effective_end_at ?? slot.end_at
-    ).getTime();
-
-    return bookedStart < dayEnd && bookedEnd > dayStart;
-  });
-}
-
 function getDateStatus(dateValue) {
   const minimumValue = toDateValue(calendarMinimumDate);
   const maximumValue = toDateValue(calendarMaximumDate);
@@ -460,17 +436,6 @@ function getDateStatus(dateValue) {
 
   if (!selectedRoomNumber) {
     return { available: false, label: "호실 선택 필요" };
-  }
-
-  if (!bookedSlotsLoaded) {
-    return {
-      available: false,
-      label: bookedSlotsLoadFailed ? "예약 확인 실패" : "예약 확인 중"
-    };
-  }
-
-  if (isDateBooked(dateValue)) {
-    return { available: false, label: "예약됨" };
   }
 
   return { available: true, label: "예약 가능" };
@@ -497,7 +462,7 @@ function validateDateRange(startDate, endDate) {
   if (unavailableDate) {
     return {
       valid: false,
-      message: `${formatKoreanDate(unavailableDate)}은(는) 선택할 수 없습니다. 주말이나 예약된 날짜를 포함하지 않도록 다시 선택해 주세요.`
+      message: `${formatKoreanDate(unavailableDate)}은(는) 선택할 수 없습니다. 주말이나 예약 기간 외 날짜를 포함하지 않도록 다시 선택해 주세요.`
     };
   }
 
@@ -582,12 +547,6 @@ function syncDateRangeSelection() {
 
     if (!selectedRoomNumber) {
       dateRangeMessage.textContent = "사용할 호실을 먼저 선택해 주세요.";
-    } else if (bookedSlotsLoadFailed) {
-      dateRangeMessage.textContent =
-        "예약 현황을 불러오지 못했습니다. 페이지를 새로고침해 주세요.";
-      dateRangeMessage.classList.add("error");
-    } else if (!bookedSlotsLoaded) {
-      dateRangeMessage.textContent = "예약 가능 날짜를 확인하고 있습니다.";
     } else {
       dateRangeMessage.textContent = "시작 날짜를 선택해 주세요.";
     }
@@ -682,47 +641,6 @@ function renderReservationCalendar() {
       selectReservationDate(button.dataset.date);
     });
   });
-}
-
-async function loadBookedSlots(roomNumber = selectedRoomNumber) {
-  if (!roomNumber) {
-    resetRoomSelection();
-    return;
-  }
-
-  const requestId = ++bookedSlotsRequestId;
-  bookedSlotsLoaded = false;
-  bookedSlotsLoadFailed = false;
-  syncDateRangeSelection();
-  renderReservationCalendar();
-
-  const minimumValue = toDateValue(calendarMinimumDate);
-  const maximumExclusive = addDays(toDateValue(calendarMaximumDate), 1);
-  const { data, error } = await supabase.rpc(
-    "get_graduate_room_blocked_slots",
-    {
-      p_room_number: Number(roomNumber),
-      p_from: new Date(`${minimumValue}T00:00:00+09:00`).toISOString(),
-      p_to: new Date(`${maximumExclusive}T00:00:00+09:00`).toISOString()
-    }
-  );
-
-  if (requestId !== bookedSlotsRequestId || roomNumber !== selectedRoomNumber) {
-    return;
-  }
-
-  if (error) {
-    bookedSlots = [];
-    bookedSlotsLoadFailed = true;
-    bookedSlotsLoaded = false;
-  } else {
-    bookedSlots = data ?? [];
-    bookedSlotsLoaded = true;
-    bookedSlotsLoadFailed = false;
-  }
-
-  resetDateRangeSelection();
-  renderReservationCalendar();
 }
 
 async function loadProfile() {

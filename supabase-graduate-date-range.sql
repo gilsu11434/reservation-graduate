@@ -1,6 +1,6 @@
 -- reservation-graduate 전용 날짜 기간 예약 기능
 -- 기존 SQL 14개를 모두 실행한 뒤 Supabase SQL Editor에서 이 파일 전체를 실행하세요.
--- 이전 버전을 이미 실행한 프로젝트도 최신 호실 목록 적용을 위해 이 파일을 다시 실행해야 합니다.
+-- 이전 버전을 이미 실행한 프로젝트도 중복 날짜 예약 허용과 최신 호실 목록 적용을 위해 이 파일을 다시 실행해야 합니다.
 -- 기존 예약은 시간 예약(hourly)으로 보존하며 삭제하지 않습니다.
 
 begin;
@@ -83,8 +83,8 @@ on public.reservation_members;
 drop trigger if exists trigger_enforce_participant_weekly_limit
 on public.reservation_members;
 
--- 선택한 호실의 예약만 달력에서 막습니다.
--- 호실 기능 도입 전의 기존 예약(room_number is null)은 안전을 위해 모든 호실을 막습니다.
+-- 다른 예약과 날짜가 겹쳐도 신청할 수 있으므로 달력에서 예약된 날짜를 막지 않습니다.
+-- 이전 화면이 이 함수를 호출해도 빈 결과를 반환해 모든 평일을 선택할 수 있게 합니다.
 create or replace function public.get_graduate_room_blocked_slots(
   p_room_number integer,
   p_from timestamptz,
@@ -108,21 +108,7 @@ begin
       using errcode = '22023';
   end if;
 
-  return query
-  select
-    reservation.id,
-    reservation.start_at,
-    reservation.end_at,
-    reservation.effective_end_at
-  from public.reservations as reservation
-  where reservation.status::text <> 'cancelled'
-    and (
-      reservation.room_number = p_room_number
-      or reservation.room_number is null
-    )
-    and reservation.start_at < p_to
-    and reservation.effective_end_at > p_from
-  order by reservation.start_at;
+  return;
 end;
 $$;
 
@@ -277,29 +263,6 @@ begin
   v_end_at := (
     p_end_date + time '18:00'
   ) at time zone 'Asia/Seoul';
-
-  -- 같은 호실에 동시에 신청해도 중복 예약이 생기지 않도록 호실별로 직렬화합니다.
-  perform pg_advisory_xact_lock(
-    hashtextextended(
-      'graduate-room-date-range-' || v_room_number::text,
-      0
-    )
-  );
-
-  if exists (
-    select 1
-    from public.reservations as reservation
-    where reservation.status::text <> 'cancelled'
-      and (
-        reservation.room_number = v_room_number
-        or reservation.room_number is null
-      )
-      and reservation.start_at < v_end_at
-      and reservation.effective_end_at > v_start_at
-  ) then
-    raise exception '선택한 기간에 이미 예약된 날짜가 있습니다.'
-      using errcode = '23P01';
-  end if;
 
   insert into public.reservations (
     team_id,

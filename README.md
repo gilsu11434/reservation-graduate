@@ -41,9 +41,9 @@
    16. `supabase-admin-reservation-date-edit.sql`
    17. `supabase-remove-certificate-requirement.sql`
 3. 신규 프로젝트에서는 `supabase-fix-usage-reports-created-at.sql`과 `supabase-manual-usage-report-approval.sql`을 실행하지 않습니다.
-   이전 버전에서 `supabase-graduate-date-range.sql`을 이미 실행했다면, 최신 호실 목록 적용을 위해 최신 파일을 다시 한 번 실행합니다.
+   이전 버전에서 `supabase-graduate-date-range.sql`을 이미 실행했다면, 중복 날짜 예약 허용과 최신 호실 목록 적용을 위해 최신 파일을 다시 한 번 실행합니다.
    기존 프로젝트에는 아직 실행하지 않은 최신 기능 SQL만 한 번씩 실행하면 됩니다.
-   관리자 날짜 변경 기능을 추가할 때는 `supabase-admin-reservation-date-edit.sql`을 한 번 실행합니다.
+   관리자 날짜 변경 기능을 추가하거나 중복 날짜 변경을 허용할 때는 최신 `supabase-admin-reservation-date-edit.sql`을 한 번 실행합니다.
    수료증 제출·인증 절차를 제거할 때는 `supabase-remove-certificate-requirement.sql`을 한 번 실행합니다.
 4. Supabase의 `Authentication > Sign In / Providers > Email`에서 `Confirm email`을 켭니다.
 5. `Authentication > URL Configuration`의 `Site URL`을 `https://gilsu11434.github.io/reservation-graduate/`로 설정하고, `Redirect URLs`에 `https://gilsu11434.github.io/reservation-graduate/login.html`을 추가합니다.
@@ -61,8 +61,8 @@
 
 ## 승인 진행 방식
 
-1. 사용자가 예약을 신청하면 선택한 호실의 날짜 기간은 즉시 다른 사용자에게 예약 불가로 표시되고, 예약 상태는 `승인 대기`가 됩니다. 다른 호실은 같은 날짜에도 별도로 예약할 수 있습니다.
-2. 관리자가 달력의 예약 건을 눌러 예약을 승인하거나 거절하며, 상세화면에서 시작 날짜와 종료 날짜를 변경할 수 있습니다. 같은 호실의 다른 예약과 겹치는 날짜는 저장되지 않습니다. 거절한 예약 날짜는 다시 예약할 수 있습니다.
+1. 사용자는 다른 예약의 호실이나 날짜와 관계없이 날짜가 겹치는 예약을 신청할 수 있으며, 예약 상태는 `승인 대기`가 됩니다.
+2. 관리자가 달력의 예약 건을 눌러 예약을 승인하거나 거절하며, 상세화면에서 시작 날짜와 종료 날짜를 변경할 수 있습니다. 관리자 날짜 변경도 다른 예약과 겹치는 기간을 저장할 수 있습니다.
 3. 사용자는 승인된 예약의 이용 종료 후 이용확인서를 제출합니다.
 4. 관리자는 이용확인서 파일이 없어도 승인할 수 있으며, 승인하면 사용자는 다음 예약을 신청할 수 있습니다. 승인 취소 시 다음 예약 제한이 다시 적용됩니다.
 5. 이용확인서는 관리자 상세화면에서 바로 보거나 내려받을 수 있습니다.
