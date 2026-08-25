@@ -51,6 +51,9 @@ const dateRangeMessage = document.getElementById("date-range-message");
 let currentUser = null;
 let currentTeamId = null;
 let currentProfile = null;
+let ownBookedSlots = [];
+let ownBookedSlotsLoaded = false;
+let ownBookedSlotsLoadFailed = false;
 let calendarMinimumDate = null;
 let calendarMaximumDate = null;
 let calendarViewDate = null;
@@ -58,6 +61,7 @@ let selectedStartDate = "";
 let selectedEndDate = "";
 let activeDateField = "start";
 let selectedRoomNumber = "";
+let ownBookedSlotsRequestId = 0;
 let professorNameComposing = false;
 let activeReservationErrorInput = null;
 
@@ -97,7 +101,7 @@ roomButtons.forEach((button) => {
   button.setAttribute("aria-checked", "false");
 
   button.addEventListener("click", () => {
-    selectRoomNumber(button.dataset.roomNumber);
+    void selectRoomNumber(button.dataset.roomNumber);
   });
 });
 
@@ -166,12 +170,16 @@ function syncRoomSelection() {
 
 function resetRoomSelection() {
   selectedRoomNumber = "";
+  ownBookedSlots = [];
+  ownBookedSlotsLoaded = false;
+  ownBookedSlotsLoadFailed = false;
+  ownBookedSlotsRequestId += 1;
   syncRoomSelection();
   resetDateRangeSelection();
   renderReservationCalendar();
 }
 
-function selectRoomNumber(roomNumber) {
+async function selectRoomNumber(roomNumber) {
   if (
     !ALLOWED_ROOM_NUMBERS.has(roomNumber) ||
     roomNumber === selectedRoomNumber
@@ -195,7 +203,7 @@ function selectRoomNumber(roomNumber) {
   }
 
   resetDateRangeSelection();
-  renderReservationCalendar();
+  await loadOwnBookedSlots(roomNumber);
 }
 
 function sanitizeProfessorName(value) {
@@ -420,6 +428,22 @@ function moveCalendarMonth(direction) {
   renderReservationCalendar();
 }
 
+function isDateBookedByCurrentUser(dateValue) {
+  const dayStart = new Date(`${dateValue}T00:00:00+09:00`).getTime();
+  const dayEnd = new Date(
+    `${addDays(dateValue, 1)}T00:00:00+09:00`
+  ).getTime();
+
+  return ownBookedSlots.some((slot) => {
+    const bookedStart = new Date(slot.start_at).getTime();
+    const bookedEnd = new Date(
+      slot.effective_end_at ?? slot.end_at
+    ).getTime();
+
+    return bookedStart < dayEnd && bookedEnd > dayStart;
+  });
+}
+
 function getDateStatus(dateValue) {
   const minimumValue = toDateValue(calendarMinimumDate);
   const maximumValue = toDateValue(calendarMaximumDate);
@@ -436,6 +460,19 @@ function getDateStatus(dateValue) {
 
   if (!selectedRoomNumber) {
     return { available: false, label: "호실 선택 필요" };
+  }
+
+  if (!ownBookedSlotsLoaded) {
+    return {
+      available: false,
+      label: ownBookedSlotsLoadFailed
+        ? "내 예약 확인 실패"
+        : "내 예약 확인 중"
+    };
+  }
+
+  if (isDateBookedByCurrentUser(dateValue)) {
+    return { available: false, label: "본인 예약 날짜" };
   }
 
   return { available: true, label: "예약 가능" };
@@ -460,9 +497,13 @@ function validateDateRange(startDate, endDate) {
   );
 
   if (unavailableDate) {
+    const unavailableReason = isDateBookedByCurrentUser(unavailableDate)
+      ? "이미 본인이 예약한 기간과 겹칩니다. 호실에 관계없이 같은 기간에는 하나의 예약만 신청할 수 있습니다."
+      : "주말이나 예약 기간 외 날짜를 포함하지 않도록 다시 선택해 주세요.";
+
     return {
       valid: false,
-      message: `${formatKoreanDate(unavailableDate)}은(는) 선택할 수 없습니다. 주말이나 예약 기간 외 날짜를 포함하지 않도록 다시 선택해 주세요.`
+      message: `${formatKoreanDate(unavailableDate)}은(는) 선택할 수 없습니다. ${unavailableReason}`
     };
   }
 
@@ -547,6 +588,12 @@ function syncDateRangeSelection() {
 
     if (!selectedRoomNumber) {
       dateRangeMessage.textContent = "사용할 호실을 먼저 선택해 주세요.";
+    } else if (ownBookedSlotsLoadFailed) {
+      dateRangeMessage.textContent =
+        "본인 예약 날짜를 불러오지 못했습니다. 페이지를 새로고침해 주세요.";
+      dateRangeMessage.classList.add("error");
+    } else if (!ownBookedSlotsLoaded) {
+      dateRangeMessage.textContent = "본인 예약 날짜를 확인하고 있습니다.";
     } else {
       dateRangeMessage.textContent = "시작 날짜를 선택해 주세요.";
     }
@@ -641,6 +688,50 @@ function renderReservationCalendar() {
       selectReservationDate(button.dataset.date);
     });
   });
+}
+
+async function loadOwnBookedSlots(roomNumber = selectedRoomNumber) {
+  if (!roomNumber) {
+    resetRoomSelection();
+    return;
+  }
+
+  const requestId = ++ownBookedSlotsRequestId;
+  ownBookedSlotsLoaded = false;
+  ownBookedSlotsLoadFailed = false;
+  syncDateRangeSelection();
+  renderReservationCalendar();
+
+  const minimumValue = toDateValue(calendarMinimumDate);
+  const maximumExclusive = addDays(toDateValue(calendarMaximumDate), 1);
+  const { data, error } = await supabase.rpc(
+    "get_graduate_room_blocked_slots",
+    {
+      p_room_number: Number(roomNumber),
+      p_from: new Date(`${minimumValue}T00:00:00+09:00`).toISOString(),
+      p_to: new Date(`${maximumExclusive}T00:00:00+09:00`).toISOString()
+    }
+  );
+
+  if (
+    requestId !== ownBookedSlotsRequestId ||
+    roomNumber !== selectedRoomNumber
+  ) {
+    return;
+  }
+
+  if (error) {
+    ownBookedSlots = [];
+    ownBookedSlotsLoadFailed = true;
+    ownBookedSlotsLoaded = false;
+  } else {
+    ownBookedSlots = data ?? [];
+    ownBookedSlotsLoaded = true;
+    ownBookedSlotsLoadFailed = false;
+  }
+
+  resetDateRangeSelection();
+  renderReservationCalendar();
 }
 
 async function loadProfile() {

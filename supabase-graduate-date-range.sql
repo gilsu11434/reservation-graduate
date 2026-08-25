@@ -1,6 +1,6 @@
 -- reservation-graduate 전용 날짜 기간 예약 기능
 -- 기존 SQL 14개를 모두 실행한 뒤 Supabase SQL Editor에서 이 파일 전체를 실행하세요.
--- 이전 버전을 이미 실행한 프로젝트도 중복 날짜 예약 허용과 최신 호실 목록 적용을 위해 이 파일을 다시 실행해야 합니다.
+-- 이전 버전을 이미 실행한 프로젝트도 다른 사용자 간 중복 허용, 본인 기간 중복 제한과 최신 호실 목록 적용을 위해 이 파일을 다시 실행해야 합니다.
 -- 기존 예약은 시간 예약(hourly)으로 보존하며 삭제하지 않습니다.
 
 begin;
@@ -83,8 +83,8 @@ on public.reservation_members;
 drop trigger if exists trigger_enforce_participant_weekly_limit
 on public.reservation_members;
 
--- 다른 예약과 날짜가 겹쳐도 신청할 수 있으므로 달력에서 예약된 날짜를 막지 않습니다.
--- 이전 화면이 이 함수를 호출해도 빈 결과를 반환해 모든 평일을 선택할 수 있게 합니다.
+-- 다른 사용자의 예약은 막지 않고, 로그인한 본인의 예약 날짜만 반환합니다.
+-- 호실과 관계없이 본인의 예약 기간에는 새 예약을 선택할 수 없습니다.
 create or replace function public.get_graduate_room_blocked_slots(
   p_room_number integer,
   p_from timestamptz,
@@ -108,7 +108,20 @@ begin
       using errcode = '22023';
   end if;
 
-  return;
+  return query
+  select
+    reservation.id,
+    reservation.start_at,
+    reservation.end_at,
+    reservation.effective_end_at
+  from public.reservations as reservation
+  join public.teams as team
+    on team.id = reservation.team_id
+  where team.leader_id = auth.uid()
+    and reservation.status::text <> 'cancelled'
+    and reservation.start_at < p_to
+    and reservation.effective_end_at > p_from
+  order by reservation.start_at;
 end;
 $$;
 
@@ -123,6 +136,78 @@ grant execute on function public.get_graduate_room_blocked_slots(
   timestamptz,
   timestamptz
 ) to authenticated;
+
+-- 다른 사용자의 예약과는 기간이 겹칠 수 있지만,
+-- 한 사용자는 호실에 관계없이 같은 기간에 하나의 예약만 가질 수 있습니다.
+create or replace function public.enforce_graduate_single_active_period()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_leader_id uuid;
+  v_start_date date;
+  v_end_date date;
+begin
+  if new.status::text = 'cancelled' then
+    return new;
+  end if;
+
+  select team.leader_id
+  into v_leader_id
+  from public.teams as team
+  where team.id = new.team_id;
+
+  if v_leader_id is null then
+    raise exception '예약자 정보를 확인할 수 없습니다.'
+      using errcode = '42501';
+  end if;
+
+  v_start_date := (new.start_at at time zone 'Asia/Seoul')::date;
+  v_end_date := (new.end_at at time zone 'Asia/Seoul')::date;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(
+      'graduate-user-date-range-' || v_leader_id::text,
+      0
+    )
+  );
+
+  if exists (
+    select 1
+    from public.reservations as other_reservation
+    join public.teams as other_team
+      on other_team.id = other_reservation.team_id
+    where other_reservation.id is distinct from new.id
+      and other_team.leader_id = v_leader_id
+      and other_reservation.status::text <> 'cancelled'
+      and (
+        other_reservation.start_at at time zone 'Asia/Seoul'
+      )::date <= v_end_date
+      and (
+        other_reservation.end_at at time zone 'Asia/Seoul'
+      )::date >= v_start_date
+  ) then
+    raise exception '본인은 호실에 관계없이 같은 기간에 하나의 예약만 신청할 수 있습니다.'
+      using errcode = '23P01';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function public.enforce_graduate_single_active_period()
+from public;
+
+drop trigger if exists trigger_enforce_graduate_single_active_period
+on public.reservations;
+
+create trigger trigger_enforce_graduate_single_active_period
+before insert or update of team_id, start_at, end_at
+on public.reservations
+for each row
+execute function public.enforce_graduate_single_active_period();
 
 create or replace function public.create_graduate_date_range_reservation(
   p_team_id uuid,
