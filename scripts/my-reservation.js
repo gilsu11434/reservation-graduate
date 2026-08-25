@@ -313,7 +313,7 @@ function renderDailyCheckoutSection(reservation) {
                   </label>
                   <label class="daily-checkout-rule">
                     <input type="checkbox" name="equipmentOff" data-checkout-rule ${completed ? "checked" : ""}>
-                    <span>컴퓨터·인두기 등 장비 OFF</span>
+                    <span>오실로스코프·컴퓨터 등 장비 OFF</span>
                   </label>
                   <label class="daily-checkout-rule">
                     <input type="checkbox" name="doorsLocked" data-checkout-rule ${completed ? "checked" : ""}>
