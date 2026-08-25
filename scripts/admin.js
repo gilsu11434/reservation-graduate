@@ -154,24 +154,6 @@ reservationDetailContent.addEventListener("click", async (event) => {
     return;
   }
 
-  const certificateDecisionButton = event.target.closest(
-    "[data-certificate-decision]"
-  );
-
-  if (certificateDecisionButton) {
-    await reviewCertificate(certificateDecisionButton);
-    return;
-  }
-
-  const certificateBulkDecisionButton = event.target.closest(
-    "[data-certificate-bulk-decision]"
-  );
-
-  if (certificateBulkDecisionButton) {
-    await reviewAllCertificates(certificateBulkDecisionButton);
-    return;
-  }
-
   const reportDecisionButton = event.target.closest(
     "[data-report-decision]"
   );
@@ -332,7 +314,7 @@ function formatDuration(startValue, endValue) {
 
 function getStatusLabel(status) {
   const labels = {
-    documents_pending: "수료증 확인 대기",
+    documents_pending: "이용 준비",
     ready: "이용 가능",
     completed: "이용 완료",
     cancelled: "취소"
@@ -412,139 +394,6 @@ function getPathExtension(path) {
     : "pdf";
 
   return extension === "jpeg" ? "jpg" : extension;
-}
-
-function getCertificateStatus(member) {
-  const status = member.certificate_review_status ??
-    (member.certificate_verified ? "approved" : "pending");
-  const statuses = {
-    pending: {
-      label: "승인 대기",
-      className: "status-documents_pending"
-    },
-    approved: {
-      label: "승인 완료",
-      className: "status-ready"
-    },
-    rejected: {
-      label: "반려",
-      className: "status-cancelled"
-    }
-  };
-
-  if (!member.safety_certificate_path && status === "pending") {
-    return {
-      status: "missing",
-      label: "미제출",
-      className: "status-cancelled"
-    };
-  }
-
-  return {
-    status,
-    ...(statuses[status] ?? statuses.pending)
-  };
-}
-
-function getCertificateUploadSummary(members) {
-  const participants = normalizeRelatedRows(members);
-  const summary = participants.reduce(
-    (result, member) => {
-      const certificateStatus = getCertificateStatus(member);
-
-      result[certificateStatus.status] += 1;
-      if (member.safety_certificate_path) {
-        result.submitted += 1;
-      }
-
-      return result;
-    },
-    {
-      total: participants.length,
-      submitted: 0,
-      missing: 0,
-      pending: 0,
-      approved: 0,
-      rejected: 0
-    }
-  );
-
-  if (summary.total === 0) {
-    return {
-      ...summary,
-      label: "참여자 없음",
-      className: "status-cancelled"
-    };
-  }
-
-  if (summary.rejected > 0) {
-    return {
-      ...summary,
-      label: "반려 있음",
-      className: "status-cancelled"
-    };
-  }
-
-  if (summary.missing > 0) {
-    return {
-      ...summary,
-      label: "미제출 있음",
-      className: "status-cancelled"
-    };
-  }
-
-  if (summary.pending > 0) {
-    return {
-      ...summary,
-      label: "승인 대기",
-      className: "status-documents_pending"
-    };
-  }
-
-  return {
-    ...summary,
-    label: "승인 완료",
-    className: "status-ready"
-  };
-}
-
-function renderCertificateReviewActions(
-  reservationId,
-  member,
-  certificateStatus
-) {
-  if (certificateStatus.status === "approved") {
-    return `
-      <button
-        type="button"
-        class="danger-button admin-download-button"
-        data-reservation-id="${escapeHtml(reservationId)}"
-        data-member-id="${escapeHtml(member.id)}"
-        data-certificate-decision="pending"
-      >승인 취소</button>
-    `;
-  }
-
-  return `
-    ${certificateStatus.status !== "rejected"
-      ? `
-        <button
-          type="button"
-          class="danger-button admin-download-button"
-          data-reservation-id="${escapeHtml(reservationId)}"
-          data-member-id="${escapeHtml(member.id)}"
-          data-certificate-decision="rejected"
-        >반려</button>
-      `
-      : ""}
-    <button
-      type="button"
-      class="admin-download-button"
-      data-reservation-id="${escapeHtml(reservationId)}"
-      data-member-id="${escapeHtml(member.id)}"
-      data-certificate-decision="approved"
-    >승인</button>
-  `;
 }
 
 function renderReportReviewActions(
@@ -640,92 +489,6 @@ async function downloadPrivateFile(button) {
   } finally {
     button.disabled = false;
   }
-}
-
-async function reviewCertificate(button) {
-  const memberId = button.dataset.memberId;
-  const reservationId = button.dataset.reservationId;
-  const decision = button.dataset.certificateDecision;
-  const actionLabels = {
-    approved: "승인",
-    rejected: "반려",
-    pending: "승인 취소"
-  };
-  const actionLabel = actionLabels[decision] ?? "처리";
-
-  if (!confirm(`이 수료증을 ${actionLabel}하시겠습니까?`)) {
-    return;
-  }
-
-  const note = decision === "pending"
-    ? ""
-    : prompt(
-      decision === "approved"
-        ? "관리자 메모가 있으면 입력해 주세요. (선택)"
-        : "반려 사유를 입력해 주세요.",
-      ""
-    );
-
-  if (note === null) {
-    return;
-  }
-
-  if (decision === "rejected" && !note.trim()) {
-    alert("반려 사유를 입력해 주세요.");
-    return;
-  }
-
-  button.disabled = true;
-
-  const { error } = await supabase.rpc(
-    "admin_review_certificate",
-    {
-      p_member_id: memberId,
-      p_decision: decision,
-      p_note: note.trim() || null
-    }
-  );
-
-  if (error) {
-    showMessage(`수료증 ${actionLabel} 오류: ${error.message}`, true);
-    button.disabled = false;
-    return;
-  }
-
-  await loadReservations();
-  openReservationDetails(reservationId);
-}
-
-async function reviewAllCertificates(button) {
-  const reservationId = button.dataset.reservationId;
-  const decision = button.dataset.certificateBulkDecision;
-  const actionLabel = decision === "approved"
-    ? "전체 승인"
-    : "전체 승인 취소";
-
-  if (!confirm(`이 예약의 참여자 수료증을 ${actionLabel}하시겠습니까?`)) {
-    return;
-  }
-
-  button.disabled = true;
-
-  const { error } = await supabase.rpc(
-    "admin_review_all_certificates",
-    {
-      p_reservation_id: reservationId,
-      p_decision: decision,
-      p_note: null
-    }
-  );
-
-  if (error) {
-    showMessage(`수료증 ${actionLabel} 오류: ${error.message}`, true);
-    button.disabled = false;
-    return;
-  }
-
-  await loadReservations();
-  openReservationDetails(reservationId);
 }
 
 async function reviewReservation(button) {
@@ -906,19 +669,13 @@ function renderParticipants(reservation) {
             <th scope="col">이름</th>
             <th scope="col">학번</th>
             <th scope="col">이메일</th>
-            <th scope="col">수료증</th>
           </tr>
         </thead>
         <tbody>
           ${participants.map((member, index) => {
-            const certificateStatus = getCertificateStatus(member);
             const isRequester =
               String(member.member_email ?? "").toLowerCase() ===
               String(reservation.requester_email ?? "").toLowerCase();
-            const certificateDownloadName =
-              `수료증_${sanitizeFilePart(member.member_name)}_` +
-              `${sanitizeFilePart(member.student_id)}.` +
-              `${getPathExtension(member.safety_certificate_path)}`;
 
             return `
               <tr>
@@ -926,43 +683,6 @@ function renderParticipants(reservation) {
                 <td><strong>${escapeHtml(member.member_name || "-")}</strong></td>
                 <td>${escapeHtml(member.student_id || "-")}</td>
                 <td>${escapeHtml(member.member_email || "-")}</td>
-                <td>
-                  <div class="admin-document-actions">
-                    <span class="status-badge ${certificateStatus.className}">
-                      ${certificateStatus.label}
-                    </span>
-                    ${
-                      member.safety_certificate_path
-                        ? `
-                          <button
-                            type="button"
-                            class="button-secondary admin-download-button"
-                            data-download-bucket="safety-certificates"
-                            data-download-path="${escapeHtml(member.safety_certificate_path)}"
-                            data-download-name="${escapeHtml(certificateDownloadName)}"
-                            data-file-action="view"
-                          >파일 보기</button>
-                          <button
-                            type="button"
-                            class="button-secondary admin-download-button"
-                            data-download-bucket="safety-certificates"
-                            data-download-path="${escapeHtml(member.safety_certificate_path)}"
-                            data-download-name="${escapeHtml(certificateDownloadName)}"
-                            data-file-action="download"
-                          >다운로드</button>
-                        `
-                        : ""
-                    }
-                    ${renderCertificateReviewActions(
-                      reservation.id,
-                      member,
-                      certificateStatus
-                    )}
-                    ${member.certificate_review_note
-                      ? `<small class="admin-certificate-note">관리자 의견: ${escapeHtml(member.certificate_review_note)}</small>`
-                      : ""}
-                  </div>
-                </td>
               </tr>
             `;
           }).join("")}
@@ -1010,9 +730,9 @@ function openReservationDetails(reservationId) {
     latestReport?.review_status ??
     "pending";
   const reportStatus = getReportStatusInfo(reportReviewStatus);
-  const certificateSummary = getCertificateUploadSummary(
+  const participantCount = normalizeRelatedRows(
     reservation.reservation_members
-  );
+  ).length;
   const reportDownloadName = latestReport
     ? `이용확인서_${sanitizeFilePart(reservation.requester_name)}_` +
       `${getReservationDateKey(reservation)}.` +
@@ -1052,9 +772,13 @@ function openReservationDetails(reservationId) {
         <span class="status-badge ${approvalStatus.className}">
           ${escapeHtml(approvalStatus.label)}
         </span>
-        <span class="status-badge status-${status}">
-          ${escapeHtml(getStatusLabel(reservation.status))}
-        </span>
+        ${["completed", "cancelled"].includes(reservation.status)
+          ? `
+            <span class="status-badge status-${status}">
+              ${escapeHtml(getStatusLabel(reservation.status))}
+            </span>
+          `
+          : ""}
       </div>
     </section>
 
@@ -1115,39 +839,9 @@ function openReservationDetails(reservationId) {
     <section class="admin-detail-section admin-upload-overview">
       <div class="admin-detail-section-heading">
         <h3>파일 업로드 현황</h3>
-        <span>수료증과 이용확인서를 한눈에 확인합니다.</span>
+        <span>이용확인서 제출 및 승인 상태를 확인합니다.</span>
       </div>
       <div class="admin-upload-status-grid">
-        <article class="admin-upload-status-card">
-          <div class="admin-upload-status-heading">
-            <span>참여자 수료증</span>
-            <span class="status-badge ${certificateSummary.className}">
-              ${escapeHtml(certificateSummary.label)}
-            </span>
-          </div>
-          <strong>
-            ${certificateSummary.submitted} / ${certificateSummary.total}명 제출
-          </strong>
-          <small>
-            승인 ${certificateSummary.approved}명 ·
-            대기 ${certificateSummary.pending}명 ·
-            반려 ${certificateSummary.rejected}명 ·
-            미제출 ${certificateSummary.missing}명
-          </small>
-          ${certificateSummary.total > 0
-            ? `
-              <div class="admin-upload-status-actions">
-                <button
-                  type="button"
-                  class="${certificateSummary.approved === certificateSummary.total ? "danger-button" : ""}"
-                  data-reservation-id="${escapeHtml(reservation.id)}"
-                  data-certificate-bulk-decision="${certificateSummary.approved === certificateSummary.total ? "pending" : "approved"}"
-                >${certificateSummary.approved === certificateSummary.total ? "수료증 전체 승인 취소" : "수료증 전체 승인"}</button>
-              </div>
-            `
-            : ""}
-        </article>
-
         <article class="admin-upload-status-card">
           <div class="admin-upload-status-heading">
             <span>이용확인서</span>
@@ -1255,7 +949,7 @@ function openReservationDetails(reservationId) {
     <section class="admin-detail-section">
       <div class="admin-detail-section-heading">
         <h3>참여자 정보</h3>
-        <span>${certificateSummary.total}명</span>
+        <span>${participantCount}명</span>
       </div>
       ${renderParticipants(reservation)}
     </section>

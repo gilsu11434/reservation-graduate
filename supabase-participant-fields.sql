@@ -1,11 +1,7 @@
--- 예약 단계에서 참여자 이름과 학번을 먼저 저장할 수 있도록
--- 수료증 파일 경로를 선택 항목으로 변경합니다.
+-- 예약 단계에서 참여자 이름·학번·이메일을 저장할 수 있도록 설정합니다.
 -- Supabase Dashboard > SQL Editor에서 전체 내용을 한 번 실행하세요.
 
-alter table public.reservation_members
-alter column safety_certificate_path drop not null;
-
--- 예약을 만든 사용자가 참여자 정보를 등록하고 수료증 경로를 수정할 수 있도록 설정합니다.
+-- 예약을 만든 사용자가 참여자 정보를 등록하고 수정할 수 있도록 설정합니다.
 drop policy if exists "reservation_members_select_by_team_leader"
 on public.reservation_members;
 

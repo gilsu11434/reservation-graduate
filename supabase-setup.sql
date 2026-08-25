@@ -14,10 +14,12 @@
 --  8) supabase-suggestions.sql
 --  9) supabase-storage-buckets.sql
 -- 10) supabase-usage-reports-policy.sql
--- 11) supabase-certificate-review.sql
--- 12) supabase-reservation-approval-workflow.sql
--- 13) supabase-professor-name-validation.sql
--- 14) supabase-graduate-date-range.sql
+-- 11) supabase-reservation-approval-workflow.sql
+-- 12) supabase-professor-name-validation.sql
+-- 13) supabase-graduate-date-range.sql
+-- 14) supabase-daily-checkout.sql
+-- 15) supabase-admin-reservation-date-edit.sql
+-- 16) supabase-remove-certificate-requirement.sql
 --
 -- 신규 프로젝트에서는 supabase-fix-usage-reports-created-at.sql과
 -- supabase-manual-usage-report-approval.sql을 실행하지 않습니다.
@@ -82,7 +84,7 @@ create table if not exists public.reservations (
   end_at timestamptz not null,
   approved_extension_minutes integer not null default 0,
   effective_end_at timestamptz not null,
-  status text not null default 'documents_pending',
+  status text not null default 'ready',
   rules_agreed boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -112,10 +114,6 @@ create table if not exists public.reservation_members (
   member_name text not null,
   student_id text not null,
   member_email text,
-  safety_certificate_path text,
-  safety_submitted_at timestamptz,
-  certificate_verified boolean not null default false,
-  certificate_verified_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -751,7 +749,7 @@ grant select, insert, update, delete on table public.usage_reports
 to authenticated;
 
 -- -----------------------------------------------------------------------------
--- 6. 수료증 및 이용확인서 Storage
+-- 6. 이용확인서 Storage
 -- -----------------------------------------------------------------------------
 
 insert into storage.buckets (
@@ -762,13 +760,6 @@ insert into storage.buckets (
   allowed_mime_types
 )
 values
-  (
-    'safety-certificates',
-    'safety-certificates',
-    false,
-    10485760,
-    array['application/pdf', 'image/jpeg', 'image/png']
-  ),
   (
     'usage-reports',
     'usage-reports',
@@ -781,52 +772,6 @@ set
   public = excluded.public,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
-
-drop policy if exists "safety_certificates_insert_own"
-on storage.objects;
-create policy "safety_certificates_insert_own"
-on storage.objects for insert to authenticated
-with check (
-  bucket_id = 'safety-certificates'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
-
-drop policy if exists "safety_certificates_select_own_or_admin"
-on storage.objects;
-create policy "safety_certificates_select_own_or_admin"
-on storage.objects for select to authenticated
-using (
-  bucket_id = 'safety-certificates'
-  and (
-    (storage.foldername(name))[1] = auth.uid()::text
-    or public.is_admin()
-  )
-);
-
-drop policy if exists "safety_certificates_update_own"
-on storage.objects;
-create policy "safety_certificates_update_own"
-on storage.objects for update to authenticated
-using (
-  bucket_id = 'safety-certificates'
-  and (storage.foldername(name))[1] = auth.uid()::text
-)
-with check (
-  bucket_id = 'safety-certificates'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
-
-drop policy if exists "safety_certificates_delete_own_or_admin"
-on storage.objects;
-create policy "safety_certificates_delete_own_or_admin"
-on storage.objects for delete to authenticated
-using (
-  bucket_id = 'safety-certificates'
-  and (
-    (storage.foldername(name))[1] = auth.uid()::text
-    or public.is_admin()
-  )
-);
 
 drop policy if exists "usage_reports_insert_own"
 on storage.objects;
@@ -905,10 +850,6 @@ select 'trigger:on_auth_user_created', exists (
   where tgname = 'on_auth_user_created'
     and tgrelid = 'auth.users'::regclass
     and not tgisinternal
-)
-union all
-select 'storage:safety-certificates', exists (
-  select 1 from storage.buckets where id = 'safety-certificates'
 )
 union all
 select 'storage:usage-reports', exists (

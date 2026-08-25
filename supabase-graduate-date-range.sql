@@ -76,7 +76,7 @@ create index if not exists reservations_room_start_idx
 on public.reservations (room_number, start_at);
 
 -- 졸업생용 예약은 사용 인원과 시간 누적 제한을 사용하지 않습니다.
--- 예약자 한 명은 수료증 제출을 위해 reservation_members에 계속 저장합니다.
+-- 예약자 한 명은 예약자 정보 조회를 위해 reservation_members에 계속 저장합니다.
 drop trigger if exists trigger_enforce_participant_daily_limit
 on public.reservation_members;
 
